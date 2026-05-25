@@ -1,0 +1,47 @@
+import { generateCompletion } from '@/lib/ai/openai-client';
+import { REQUIREMENT_EXTRACTION_PROMPT } from '@/lib/ai/prompts';
+import {
+  RequirementExtractionOutputSchema,
+  type RequirementExtractionInput,
+  type RequirementExtractionOutput,
+} from '@/lib/ai/schemas';
+
+export async function extractRequirements(
+  input: RequirementExtractionInput
+): Promise<RequirementExtractionOutput> {
+  const requirements: RequirementExtractionOutput['requirements'] = [];
+
+  for (const doc of input.documents) {
+    try {
+      const prompt = REQUIREMENT_EXTRACTION_PROMPT
+        .replace('{category}', doc.category)
+        .replace('{documentName}', doc.fileName)
+        .replace('{documentText}', doc.text.substring(0, 8000));
+
+      const response = await generateCompletion(
+        'You are a construction compliance expert. Always return valid JSON.',
+        prompt,
+        { temperature: 0.2, maxTokens: 3000 }
+      );
+
+      const parsed = JSON.parse(response);
+      const rawItems = Array.isArray(parsed.requirements) ? parsed.requirements : Array.isArray(parsed) ? parsed : [];
+
+      const docRequirements = rawItems.map((req: Record<string, unknown>) => ({
+        requirementCode: (req.requirementCode as string) || `REQ-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        requirementText: req.requirementText as string,
+        category: (req.category as string) || doc.category,
+        severity: (req.severity as string) || 'major',
+        sourceDocumentId: doc.documentId,
+        sourceDocumentName: doc.fileName,
+        sourceExcerpt: (req.sourceExcerpt as string) || (req.requirementText as string),
+      }));
+
+      requirements.push(...docRequirements);
+    } catch (error) {
+      console.error(`Failed to extract requirements from ${doc.fileName}:`, error);
+    }
+  }
+
+  return RequirementExtractionOutputSchema.parse({ requirements });
+}

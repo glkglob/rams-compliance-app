@@ -1,0 +1,60 @@
+import { NextResponse } from "next/server";
+import { createServerSupabase } from "@/lib/db/supabase-server";
+
+type Context = { params: Promise<{ ramsId: string }> };
+
+export async function GET(_request: Request, { params }: Context) {
+  try {
+    const { ramsId } = await params;
+    const supabase = await createServerSupabase();
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { data: rams, error } = await supabase
+      .from("rams_submissions")
+      .select(`
+        *,
+        projects!inner (name, compliance_threshold),
+        rams_reviews (*, review_checks (*)),
+        generated_emails (*)
+      `)
+      .eq("id", ramsId)
+      .order("created_at", { referencedTable: "rams_reviews", ascending: false })
+      .order("created_at", { referencedTable: "generated_emails", ascending: false })
+      .single();
+
+    if (error || !rams) {
+      return NextResponse.json({ error: "RAMS not found" }, { status: 404 });
+    }
+
+    const { data: membership } = await supabase
+      .from("project_members")
+      .select("role")
+      .eq("project_id", rams.project_id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (!membership) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile || profile.role !== "admin") {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
+
+    return NextResponse.json(rams, { status: 200 });
+  } catch (error) {
+    console.error("Error fetching RAMS:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
