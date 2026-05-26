@@ -28,6 +28,11 @@ export async function POST(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const allowedRoles = ['admin', 'project_manager'];
+    if (!allowedRoles.includes(membership.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const rl = await checkRateLimit(user.id, 'requirements-extract');
     if (!rl.allowed) {
       return rateLimitExceeded(rl.resetMs);

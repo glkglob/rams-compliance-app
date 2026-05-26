@@ -147,6 +147,17 @@ export async function GET(_request: Request, { params }: Context) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { data: membership } = await supabase
+      .from("project_members")
+      .select("role")
+      .eq("project_id", projectId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (!membership) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { data: submissions, error } = await supabase
       .from("rams_submissions")
       .select("*")

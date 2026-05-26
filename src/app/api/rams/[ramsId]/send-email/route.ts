@@ -19,12 +19,23 @@ export async function POST(_request: Request, { params }: Context) {
 
     const { data: rams, error: ramsError } = await supabase
       .from("rams_submissions")
-      .select("subcontractor_email, subcontractor_name")
+      .select("subcontractor_email, subcontractor_name, project_id")
       .eq("id", ramsId)
       .single();
 
     if (ramsError || !rams) {
       return NextResponse.json({ error: "RAMS not found" }, { status: 404 });
+    }
+
+    const { data: membership } = await supabase
+      .from("project_members")
+      .select("role")
+      .eq("project_id", rams.project_id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (!membership) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     if (!rams.subcontractor_email) {

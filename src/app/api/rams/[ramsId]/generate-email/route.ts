@@ -33,6 +33,17 @@ export async function POST(_request: Request, { params }: Context) {
       return NextResponse.json({ error: "RAMS not found" }, { status: 404 });
     }
 
+    const { data: membership } = await supabase
+      .from("project_members")
+      .select("role")
+      .eq("project_id", rams.project_id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (!membership) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { data: review, error: reviewError } = await supabase
       .from("rams_reviews")
       .select("*, review_checks (*)")
