@@ -4,7 +4,7 @@ import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 import { extractTextFromFile } from "@/lib/documents/extract-text";
-import { validateFile } from "@/lib/documents/file-validation";
+import { validateFile, sanitiseFilename } from "@/lib/documents/file-validation";
 
 export const maxDuration = 300;
 
