@@ -121,7 +121,7 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
         }
       }
 
-      createAuditLog("UPLOAD_COMPLIANCE_DOCUMENT", "compliance_document", document.id, {
+      await createAuditLog("UPLOAD_COMPLIANCE_DOCUMENT", "compliance_document", document.id, {
         userId: user.id,
         details: {
           fileName: file.name,

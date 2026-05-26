@@ -90,16 +90,23 @@ export async function orchestrateRAMSReview(
 
       requirements = extractionResult.requirements;
 
-      for (const req of requirements) {
-        await supabase.from('compliance_requirements').insert({
-          project_id: project.id,
-          source_document_id: req.sourceDocumentId,
-          requirement_code: req.requirementCode,
-          requirement_text: req.requirementText,
-          category: req.category,
-          severity: req.severity,
-          source_excerpt: req.sourceExcerpt,
-        });
+      if (requirements.length > 0) {
+        const { error: reqInsertError } = await supabase
+          .from('compliance_requirements')
+          .insert(
+            requirements.map(req => ({
+              project_id: project.id,
+              source_document_id: req.sourceDocumentId,
+              requirement_code: req.requirementCode,
+              requirement_text: req.requirementText,
+              category: req.category,
+              severity: req.severity,
+              source_excerpt: req.sourceExcerpt,
+            }))
+          );
+        if (reqInsertError) {
+          console.error('Failed to batch-insert requirements:', reqInsertError);
+        }
       }
     }
 
@@ -157,17 +164,26 @@ export async function orchestrateRAMSReview(
     }
 
     // 9. Save review checks
-    for (const check of comparison.checks) {
-      const matchedReq = requirements.find(r => r.requirementCode === check.requirementId);
-      await supabase.from('review_checks').insert({
-        rams_review_id: review.id,
-        requirement_id: matchedReq?.requirementCode,
-        status: check.status,
-        severity: check.severity,
-        score: check.score,
-        rams_evidence: check.ramsEvidence,
-        explanation: check.explanation,
-      });
+    if (comparison.checks.length > 0) {
+      const { error: checksInsertError } = await supabase
+        .from('review_checks')
+        .insert(
+          comparison.checks.map(check => {
+            const matchedReq = requirements.find(r => r.requirementCode === check.requirementId);
+            return {
+              rams_review_id: review.id,
+              requirement_id: matchedReq?.requirementCode,
+              status: check.status,
+              severity: check.severity,
+              score: check.score,
+              rams_evidence: check.ramsEvidence,
+              explanation: check.explanation,
+            };
+          })
+        );
+      if (checksInsertError) {
+        console.error('Failed to batch-insert review checks:', checksInsertError);
+      }
     }
 
     // 10. Save email draft
@@ -193,8 +209,8 @@ export async function orchestrateRAMSReview(
       })
       .eq('id', ramsSubmissionId);
 
-    // 13. Audit log (fire-and-forget via helper)
-    createAuditLog('REVIEW_RAMS', 'rams_submission', ramsSubmissionId, {
+    // 13. Audit log
+    await createAuditLog('REVIEW_RAMS', 'rams_submission', ramsSubmissionId, {
       userId: performedByUserId,
       details: {
         decision: scoringResult.decision,

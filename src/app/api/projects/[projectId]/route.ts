@@ -120,7 +120,7 @@ export async function PATCH(request: Request, { params }: ProjectRouteContext) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    createAuditLog("UPDATE_PROJECT", "project", project.id, {
+    await createAuditLog("UPDATE_PROJECT", "project", project.id, {
       userId: user.id,
       details: validatedData,
     });
@@ -160,7 +160,7 @@ export async function DELETE(_request: Request, { params }: ProjectRouteContext)
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    createAuditLog("DELETE_PROJECT", "project", projectId, {
+    await createAuditLog("DELETE_PROJECT", "project", projectId, {
       userId: user.id,
     });
 

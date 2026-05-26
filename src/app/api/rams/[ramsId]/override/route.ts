@@ -86,7 +86,7 @@ export async function POST(request: Request, { params }: Context) {
       email_sent: false,
     });
 
-    createAuditLog("OVERRIDE_RAMS_REVIEW", "rams_submission", ramsId, {
+    await createAuditLog("OVERRIDE_RAMS_REVIEW", "rams_submission", ramsId, {
       userId: user.id,
       details: {
         previousStatus: rams.review_status,
@@ -99,6 +99,5 @@ export async function POST(request: Request, { params }: Context) {
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     return handleAPIError(error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

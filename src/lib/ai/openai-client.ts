@@ -30,7 +30,7 @@ export async function generateCompletion(
   const openai = getOpenAIClient();
 
   const response = await openai.chat.completions.create({
-    model: options.model || 'gpt-4-turbo',
+    model: options.model ?? process.env.OPENAI_MODEL ?? 'gpt-4o',
     temperature: options.temperature ?? 0.3,
     max_tokens: options.maxTokens || 4000,
     messages: [

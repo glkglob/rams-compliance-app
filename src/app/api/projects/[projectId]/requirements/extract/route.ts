@@ -91,7 +91,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
-    createAuditLog('EXTRACT_REQUIREMENTS', 'project', projectId, {
+    await createAuditLog('EXTRACT_REQUIREMENTS', 'project', projectId, {
       userId: user.id,
       details: {
         requirementsExtracted: insertedRequirements?.length ?? 0,

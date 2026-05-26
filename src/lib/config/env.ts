@@ -27,8 +27,13 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   OPENAI_API_KEY: z.string().min(1),
   RESEND_API_KEY: z.string().min(1),
+  RESEND_FROM_EMAIL: z.string().min(1),
   DATABASE_URL: z.string().min(1),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  // Optional — rate limiting is disabled when absent (dev convenience).
+  // Validated as required in production further below.
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -40,13 +45,26 @@ export function validateEnv(): Env {
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
+    RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
   });
 
   if (!result.success) {
     const missingVars = result.error.issues.map(e => e.path.join('.')).join(', ');
     throw new Error(`Missing or invalid environment variables: ${missingVars}`);
+  }
+
+  const { NODE_ENV, UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } = result.data;
+  const upstashMissing = !UPSTASH_REDIS_REST_URL || !UPSTASH_REDIS_REST_TOKEN;
+  if (upstashMissing) {
+    const msg = 'UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are not set — rate limiting will be disabled.';
+    if (NODE_ENV === 'production') {
+      throw new Error(msg);
+    }
+    console.warn(`[env] ${msg}`);
   }
 
   return result.data;

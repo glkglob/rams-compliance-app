@@ -105,7 +105,7 @@ export async function POST(request: Request, { params }: Context) {
         })
         .eq("id", submission.id);
 
-      createAuditLog("UPLOAD_RAMS", "rams_submission", submission.id, {
+      await createAuditLog("UPLOAD_RAMS", "rams_submission", submission.id, {
         userId: user.id,
         details: {
           fileName: file.name,

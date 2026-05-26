@@ -49,7 +49,7 @@ export async function DELETE(_request: Request, { params }: DocumentRouteContext
     }
 
     // Use centralized audit helper (fire-and-forget)
-    createAuditLog("DELETE_COMPLIANCE_DOCUMENT", "compliance_document", documentId, {
+    await createAuditLog("DELETE_COMPLIANCE_DOCUMENT", "compliance_document", documentId, {
       userId: user.id,
       details: { fileName: document.file_name },
     });

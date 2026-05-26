@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     }
 
     // Centralized audit helper (never blocks the response)
-    createAuditLog("CREATE_PROJECT", "project", project.id, {
+    await createAuditLog("CREATE_PROJECT", "project", project.id, {
       userId: user.id,
       details: validatedData,
     });

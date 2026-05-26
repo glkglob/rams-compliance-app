@@ -42,6 +42,11 @@ export async function POST(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const rl = await checkRateLimit(user.id, 'review');
+    if (!rl.allowed) {
+      return rateLimitExceeded(rl.resetMs);
+    }
+
     const result = await orchestrateRAMSReview(ramsId, user.id);
 
     if (!result.success && !result.decision) {
