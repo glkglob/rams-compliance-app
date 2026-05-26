@@ -4,6 +4,9 @@ import { createAuditLog } from '@/lib/audit/audit-log';
 import { createServerSupabase } from '@/lib/db/supabase-server';
 import { handleAPIError, UnauthorizedError } from '@/lib/error-handling';
 import { extractRequirements } from '@/lib/ai/agents/requirement-extraction-agent';
+import { checkRateLimit, rateLimitExceeded } from '@/lib/rate-limit';
+
+export const maxDuration = 300;
 
 type RouteContext = {
   params: Promise<{ projectId: string }>;
@@ -28,6 +31,16 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
     if (!membership) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const allowedRoles = ['admin', 'project_manager'];
+    if (!allowedRoles.includes(membership.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const rl = await checkRateLimit(user.id, 'requirements-extract');
+    if (!rl.allowed) {
+      return rateLimitExceeded(rl.resetMs);
     }
 
     const { data: documents, error: docsError } = await supabase

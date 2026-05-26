@@ -7,6 +7,8 @@ import { chunkText } from "@/lib/documents/chunk-text";
 import { extractTextFromFile } from "@/lib/documents/extract-text";
 import { validateFile } from "@/lib/documents/file-validation";
 
+export const maxDuration = 300;
+
 type ProjectDocsContext = {
   params: Promise<{ projectId: string }>;
 };
@@ -52,7 +54,8 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
     }
 
     const fileBuffer = Buffer.from(await file.arrayBuffer());
-    const storagePath = `${projectId}/compliance-docs/${Date.now()}-${file.name}`;
+    const safeName = sanitiseFilename(file.name);
+    const storagePath = `${projectId}/compliance-docs/${Date.now()}-${safeName}`;
 
     const { error: uploadError } = await supabase.storage
       .from("documents")
@@ -167,6 +170,17 @@ export async function GET(_request: Request, { params }: ProjectDocsContext) {
     } = await supabase.auth.getUser();
     if (userError || !user) {
       throw new UnauthorizedError();
+    }
+
+    const { data: membership } = await supabase
+      .from("project_members")
+      .select("role")
+      .eq("project_id", projectId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (!membership) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { data: documents, error } = await supabase

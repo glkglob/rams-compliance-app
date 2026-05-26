@@ -3,6 +3,9 @@ import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 import { generateEmail } from "@/lib/ai/agents/email-generation-agent";
+import { checkRateLimit, rateLimitExceeded } from "@/lib/rate-limit";
+
+export const maxDuration = 300;
 
 type Context = { params: Promise<{ ramsId: string }> };
 
@@ -19,6 +22,11 @@ export async function POST(_request: Request, { params }: Context) {
       throw new UnauthorizedError();
     }
 
+    const rl = await checkRateLimit(user.id, 'generate-email');
+    if (!rl.allowed) {
+      return rateLimitExceeded(rl.resetMs);
+    }
+
     const { data: rams, error: ramsError } = await supabase
       .from("rams_submissions")
       .select("*, projects!inner (name, compliance_threshold)")
@@ -27,6 +35,17 @@ export async function POST(_request: Request, { params }: Context) {
 
     if (ramsError || !rams) {
       return NextResponse.json({ error: "RAMS not found" }, { status: 404 });
+    }
+
+    const { data: membership } = await supabase
+      .from("project_members")
+      .select("role")
+      .eq("project_id", rams.project_id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (!membership) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { data: review, error: reviewError } = await supabase

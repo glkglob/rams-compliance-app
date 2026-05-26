@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { withSentryConfig } from '@sentry/nextjs';
 
 const nextConfig: NextConfig = {
   // Prevent webpack from bundling these server-only packages.
@@ -33,4 +34,20 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Sentry organisation and project slugs — set in Railway / CI.
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  // Only print Sentry build output in CI; stay quiet in local dev.
+  silent: !process.env.CI,
+  // Upload a larger set of source maps so stack traces are more readable.
+  widenClientFileUpload: true,
+  // Delete .map files from the deploy artifact after uploading to Sentry.
+  sourcemaps: {
+    filesToDeleteAfterUpload: ['.next/static/**/*.map'],
+  },
+  // Tree-shake the Sentry logger to reduce bundle size.
+  disableLogger: true,
+  // No Vercel Cron monitor wiring needed on Railway.
+  automaticVercelMonitors: false,
+});

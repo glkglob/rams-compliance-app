@@ -6,6 +6,8 @@ import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 import { extractTextFromFile } from "@/lib/documents/extract-text";
 import { validateFile } from "@/lib/documents/file-validation";
 
+export const maxDuration = 300;
+
 type Context = { params: Promise<{ projectId: string }> };
 
 export async function POST(request: Request, { params }: Context) {
@@ -54,7 +56,8 @@ export async function POST(request: Request, { params }: Context) {
     }
 
     const fileBuffer = Buffer.from(await file.arrayBuffer());
-    const storagePath = `${projectId}/rams/${Date.now()}-${file.name}`;
+    const safeName = sanitiseFilename(file.name);
+    const storagePath = `${projectId}/rams/${Date.now()}-${safeName}`;
 
     const { error: uploadError } = await supabase.storage
       .from("documents")
@@ -143,6 +146,17 @@ export async function GET(_request: Request, { params }: Context) {
     } = await supabase.auth.getUser();
     if (userError || !user) {
       throw new UnauthorizedError();
+    }
+
+    const { data: membership } = await supabase
+      .from("project_members")
+      .select("role")
+      .eq("project_id", projectId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (!membership) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { data: submissions, error } = await supabase

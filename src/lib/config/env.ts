@@ -1,5 +1,26 @@
 import { z } from 'zod';
 
+function getRequiredEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    // During static prerender at build time, runtime-injected env vars are not
+    // yet available. Return a safe placeholder rather than aborting the build —
+    // the real values will be present when the app runs.
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      return '';
+    }
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+export function getSupabaseEnv() {
+  return {
+    supabaseUrl: getRequiredEnv('NEXT_PUBLIC_SUPABASE_URL'),
+    supabaseAnonKey: getRequiredEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
+  };
+}
+
 const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),

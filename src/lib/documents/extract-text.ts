@@ -166,14 +166,39 @@ function extractFromTxt(buffer: Buffer): ExtractionResult {
   };
 }
 
+const MAX_OCR_BYTES = 50 * 1024 * 1024; // 50 MB
+const OCR_TIMEOUT_MS = 30_000;           // 30 s
+
 async function extractFromImage(buffer: Buffer): Promise<ExtractionResult> {
+  if (buffer.length > MAX_OCR_BYTES) {
+    return {
+      status: "failed",
+      confidence: 0,
+      requiresManualReview: true,
+      issues: [
+        `File too large for OCR (${(buffer.length / 1024 / 1024).toFixed(1)} MB — max 50 MB)`,
+      ],
+    };
+  }
+
   try {
     const { createWorker } = await import("tesseract.js");
     const worker = await createWorker("eng");
-    const {
-      data: { text, confidence },
-    } = await worker.recognize(buffer);
-    await worker.terminate();
+
+    const ocrTimeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("OCR timed out after 30 s")), OCR_TIMEOUT_MS)
+    );
+
+    let text: string;
+    let confidence: number;
+    try {
+      ({ data: { text, confidence } } = await Promise.race([
+        worker.recognize(buffer),
+        ocrTimeout,
+      ]));
+    } finally {
+      await worker.terminate();
+    }
 
     return {
       status: "complete",
