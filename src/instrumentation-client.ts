@@ -15,3 +15,5 @@ Sentry.init({
   integrations: [Sentry.replayIntegration()],
   debug: false,
 });
+
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

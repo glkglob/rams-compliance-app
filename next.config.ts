@@ -46,8 +46,4 @@ export default withSentryConfig(nextConfig, {
   sourcemaps: {
     filesToDeleteAfterUpload: ['.next/static/**/*.map'],
   },
-  // Tree-shake the Sentry logger to reduce bundle size.
-  disableLogger: true,
-  // No Vercel Cron monitor wiring needed on Railway.
-  automaticVercelMonitors: false,
 });
