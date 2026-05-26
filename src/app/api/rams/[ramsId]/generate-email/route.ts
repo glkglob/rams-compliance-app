@@ -3,6 +3,8 @@ import { createServerSupabase } from "@/lib/db/supabase-server";
 import { generateEmail } from "@/lib/ai/agents/email-generation-agent";
 import { checkRateLimit, rateLimitExceeded } from "@/lib/rate-limit";
 
+export const maxDuration = 300;
+
 type Context = { params: Promise<{ ramsId: string }> };
 
 export async function POST(_request: Request, { params }: Context) {

@@ -10,6 +10,8 @@ export function getOpenAIClient(): OpenAI {
 
     openaiInstance = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
+      timeout: 60_000,  // 60 s per call — OpenAI can be slow under load
+      maxRetries: 2,    // retry transient 5xx / network errors automatically
     });
   }
 

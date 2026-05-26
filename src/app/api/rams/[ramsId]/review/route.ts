@@ -3,6 +3,8 @@ import { createServerSupabase } from '@/lib/db/supabase-server';
 import { orchestrateRAMSReview } from '@/lib/ai/orchestrator';
 import { checkRateLimit, rateLimitExceeded } from '@/lib/rate-limit';
 
+export const maxDuration = 300;
+
 type RouteContext = {
   params: Promise<{ ramsId: string }>;
 };

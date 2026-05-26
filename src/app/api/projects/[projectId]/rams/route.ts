@@ -3,6 +3,8 @@ import { createServerSupabase } from "@/lib/db/supabase-server";
 import { validateFile, sanitiseFilename } from "@/lib/documents/file-validation";
 import { extractTextFromFile } from "@/lib/documents/extract-text";
 
+export const maxDuration = 300;
+
 type Context = { params: Promise<{ projectId: string }> };
 
 export async function POST(request: Request, { params }: Context) {

@@ -3,6 +3,8 @@ import { createServerSupabase } from '@/lib/db/supabase-server';
 import { extractRequirements } from '@/lib/ai/agents/requirement-extraction-agent';
 import { checkRateLimit, rateLimitExceeded } from '@/lib/rate-limit';
 
+export const maxDuration = 300;
+
 type RouteContext = {
   params: Promise<{ projectId: string }>;
 };

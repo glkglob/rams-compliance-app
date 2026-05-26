@@ -4,6 +4,8 @@ import { validateFile, sanitiseFilename } from "@/lib/documents/file-validation"
 import { extractTextFromFile } from "@/lib/documents/extract-text";
 import { chunkText } from "@/lib/documents/chunk-text";
 
+export const maxDuration = 300;
+
 type ProjectDocsContext = {
   params: Promise<{ projectId: string }>;
 };

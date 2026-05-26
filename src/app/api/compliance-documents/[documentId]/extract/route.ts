@@ -4,6 +4,8 @@ import { extractTextFromFile } from "@/lib/documents/extract-text";
 import { chunkText } from "@/lib/documents/chunk-text";
 import { getMimeTypeForFileType } from "@/lib/documents/file-validation";
 
+export const maxDuration = 300;
+
 type ExtractRouteContext = {
   params: Promise<{ documentId: string }>;
 };
