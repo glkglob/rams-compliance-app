@@ -37,6 +37,11 @@ export async function POST(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const allowedRoles = ['admin', 'project_manager', 'reviewer'];
+    if (!allowedRoles.includes(membership.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const result = await orchestrateRAMSReview(ramsId);
 
     if (!result.success && !result.decision) {

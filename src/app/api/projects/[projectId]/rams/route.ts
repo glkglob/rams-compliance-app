@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/db/supabase-server";
-import { validateFile } from "@/lib/documents/file-validation";
+import { validateFile, sanitiseFilename } from "@/lib/documents/file-validation";
 import { extractTextFromFile } from "@/lib/documents/extract-text";
 
 type Context = { params: Promise<{ projectId: string }> };
@@ -51,7 +51,8 @@ export async function POST(request: Request, { params }: Context) {
     }
 
     const fileBuffer = Buffer.from(await file.arrayBuffer());
-    const storagePath = `${projectId}/rams/${Date.now()}-${file.name}`;
+    const safeName = sanitiseFilename(file.name);
+    const storagePath = `${projectId}/rams/${Date.now()}-${safeName}`;
 
     const { error: uploadError } = await supabase.storage
       .from("documents")

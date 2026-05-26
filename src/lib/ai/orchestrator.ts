@@ -1,6 +1,5 @@
 import { createServerSupabase } from '@/lib/db/supabase-server';
 import { extractRequirements } from '@/lib/ai/agents/requirement-extraction-agent';
-import { analyzeRAMS } from '@/lib/ai/agents/rams-analysis-agent';
 import { compareCompliance } from '@/lib/ai/agents/compliance-comparison-agent';
 import { generateExplanation } from '@/lib/ai/agents/explanation-agent';
 import { generateEmail } from '@/lib/ai/agents/email-generation-agent';
@@ -106,20 +105,17 @@ export async function orchestrateRAMSReview(
       return { success: false, error: 'No requirements could be extracted' };
     }
 
-    // 4. Analyze RAMS content
-    await analyzeRAMS(rams.extracted_text);
-
-    // 5. Compare RAMS against requirements
+    // 4. Compare RAMS against requirements
     const comparison = await compareCompliance(requirements, rams.extracted_text);
 
-    // 6. Calculate compliance score
+    // 5. Calculate compliance score
     const scoringResult = calculateComplianceScore(
       comparison.checks,
       project.compliance_threshold,
       rams.extraction_confidence ?? undefined
     );
 
-    // 7. Generate explanation
+    // 6. Generate explanation
     const explanation = await generateExplanation(
       scoringResult.complianceScore,
       scoringResult.threshold,
@@ -127,7 +123,7 @@ export async function orchestrateRAMSReview(
       comparison.checks
     );
 
-    // 8. Generate email draft
+    // 7. Generate email draft
     const email = await generateEmail(scoringResult.decision, {
       projectName: project.name,
       subcontractorName: rams.subcontractor_name,
@@ -139,7 +135,7 @@ export async function orchestrateRAMSReview(
       corrections: explanation.requiredCorrections,
     });
 
-    // 9. Save review results
+    // 8. Save review results
     const { data: review, error: reviewError } = await supabase
       .from('rams_reviews')
       .insert({
@@ -158,7 +154,7 @@ export async function orchestrateRAMSReview(
       return { success: false, error: 'Failed to save review' };
     }
 
-    // 10. Save review checks
+    // 9. Save review checks
     for (const check of comparison.checks) {
       const matchedReq = requirements.find(r => r.requirementCode === check.requirementId);
       await supabase.from('review_checks').insert({
@@ -172,7 +168,7 @@ export async function orchestrateRAMSReview(
       });
     }
 
-    // 11. Save email draft
+    // 10. Save email draft
     const { error: emailError } = await supabase.from('generated_emails').insert({
       rams_submission_id: ramsSubmissionId,
       subject: email.subject,
@@ -184,7 +180,7 @@ export async function orchestrateRAMSReview(
       console.error('Failed to save email draft:', emailError);
     }
 
-    // 12. Update RAMS submission
+    // 11. Update RAMS submission
     await supabase
       .from('rams_submissions')
       .update({
@@ -195,7 +191,7 @@ export async function orchestrateRAMSReview(
       })
       .eq('id', ramsSubmissionId);
 
-    // 13. Audit log
+    // 12. Audit log
     await supabase.from('audit_logs').insert({
       action: 'REVIEW_RAMS',
       entity_type: 'rams_submission',

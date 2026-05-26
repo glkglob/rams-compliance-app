@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/db/supabase-server";
-import { validateFile } from "@/lib/documents/file-validation";
+import { validateFile, sanitiseFilename } from "@/lib/documents/file-validation";
 import { extractTextFromFile } from "@/lib/documents/extract-text";
 import { chunkText } from "@/lib/documents/chunk-text";
 
@@ -49,7 +49,8 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
     }
 
     const fileBuffer = Buffer.from(await file.arrayBuffer());
-    const storagePath = `${projectId}/compliance-docs/${Date.now()}-${file.name}`;
+    const safeName = sanitiseFilename(file.name);
+    const storagePath = `${projectId}/compliance-docs/${Date.now()}-${safeName}`;
 
     const { error: uploadError } = await supabase.storage
       .from("documents")

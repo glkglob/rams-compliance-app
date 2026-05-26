@@ -88,6 +88,13 @@ FILE_TYPE_TO_MIME["jpeg"] = "image/jpeg";
 FILE_TYPE_TO_MIME["txt"] = "text/plain";
 FILE_TYPE_TO_MIME["csv"] = "text/csv";
 
+export function sanitiseFilename(name: string): string {
+  return name
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/\.{2,}/g, '_')
+    .slice(0, 200);
+}
+
 export function getMimeTypeForFileType(fileType: string): string {
   return FILE_TYPE_TO_MIME[fileType] ?? `application/${fileType}`;
 }
