@@ -1,5 +1,3 @@
-import { createWorker } from "tesseract.js";
-
 interface ExtractionResult {
   status: "complete" | "failed";
   extractedText?: string;
@@ -170,6 +168,7 @@ function extractFromTxt(buffer: Buffer): ExtractionResult {
 
 async function extractFromImage(buffer: Buffer): Promise<ExtractionResult> {
   try {
+    const { createWorker } = await import("tesseract.js");
     const worker = await createWorker("eng");
     const {
       data: { text, confidence },
