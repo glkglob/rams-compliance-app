@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 import { sendEmail } from "@/lib/email/resend";
 
 type Context = { params: Promise<{ ramsId: string }> };
@@ -14,7 +16,7 @@ export async function POST(_request: Request, { params }: Context) {
       error: userError,
     } = await supabase.auth.getUser();
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const { data: rams, error: ramsError } = await supabase
@@ -79,11 +81,8 @@ export async function POST(_request: Request, { params }: Context) {
         .eq("id", review.id);
     }
 
-    await supabase.from("audit_logs").insert({
-      user_id: user.id,
-      action: "SEND_EMAIL",
-      entity_type: "rams_submission",
-      entity_id: ramsId,
+    createAuditLog("SEND_EMAIL", "rams_submission", ramsId, {
+      userId: user.id,
       details: {
         to: rams.subcontractor_email,
         subject: emailDraft.subject,
@@ -93,7 +92,6 @@ export async function POST(_request: Request, { params }: Context) {
 
     return NextResponse.json({ success: true, messageId: result.messageId }, { status: 200 });
   } catch (error) {
-    console.error("Error sending email:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleAPIError(error);
   }
 }

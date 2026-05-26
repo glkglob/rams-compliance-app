@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { handleAPIError, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
 import { z } from "zod";
 
 const overrideSchema = z.object({
@@ -19,7 +21,7 @@ export async function POST(request: Request, { params }: Context) {
       error: userError,
     } = await supabase.auth.getUser();
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const { data: profile } = await supabase
@@ -29,10 +31,7 @@ export async function POST(request: Request, { params }: Context) {
       .single();
 
     if (!profile || !["admin", "project_manager"].includes(profile.role)) {
-      return NextResponse.json(
-        { error: "Forbidden – admin or project_manager role required" },
-        { status: 403 }
-      );
+      throw new ForbiddenError("Forbidden – admin or project_manager role required");
     }
 
     const body = await request.json();
@@ -76,11 +75,8 @@ export async function POST(request: Request, { params }: Context) {
       email_sent: false,
     });
 
-    await supabase.from("audit_logs").insert({
-      user_id: user.id,
-      action: "OVERRIDE_RAMS_REVIEW",
-      entity_type: "rams_submission",
-      entity_id: ramsId,
+    createAuditLog("OVERRIDE_RAMS_REVIEW", "rams_submission", ramsId, {
+      userId: user.id,
       details: {
         previousStatus: rams.review_status,
         newStatus: decision,
@@ -91,7 +87,7 @@ export async function POST(request: Request, { params }: Context) {
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    console.error("Error overriding review:", error);
+    return handleAPIError(error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

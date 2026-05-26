@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
+
+import { createAuditLog } from '@/lib/audit/audit-log';
 import { createServerSupabase } from '@/lib/db/supabase-server';
+import { handleAPIError, UnauthorizedError } from '@/lib/error-handling';
 import { extractRequirements } from '@/lib/ai/agents/requirement-extraction-agent';
 
 type RouteContext = {
@@ -13,7 +16,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const { data: membership } = await supabase
@@ -75,11 +78,8 @@ export async function POST(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
-    await supabase.from('audit_logs').insert({
-      user_id: user.id,
-      action: 'EXTRACT_REQUIREMENTS',
-      entity_type: 'project',
-      entity_id: projectId,
+    createAuditLog('EXTRACT_REQUIREMENTS', 'project', projectId, {
+      userId: user.id,
       details: {
         requirementsExtracted: insertedRequirements?.length ?? 0,
         documentsProcessed: documents.length,
@@ -92,7 +92,6 @@ export async function POST(_request: Request, { params }: RouteContext) {
       count: insertedRequirements?.length ?? 0,
     }, { status: 200 });
   } catch (error) {
-    console.error('Error extracting requirements:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleAPIError(error);
   }
 }

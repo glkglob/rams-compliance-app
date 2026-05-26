@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+
+import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
-import { validateFile } from "@/lib/documents/file-validation";
-import { extractTextFromFile } from "@/lib/documents/extract-text";
+import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 import { chunkText } from "@/lib/documents/chunk-text";
+import { extractTextFromFile } from "@/lib/documents/extract-text";
+import { validateFile } from "@/lib/documents/file-validation";
 
 type ProjectDocsContext = {
   params: Promise<{ projectId: string }>;
@@ -18,7 +21,7 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
       error: userError,
     } = await supabase.auth.getUser();
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const { data: membership } = await supabase
@@ -115,11 +118,8 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
         }
       }
 
-      await supabase.from("audit_logs").insert({
-        user_id: user.id,
-        action: "UPLOAD_COMPLIANCE_DOCUMENT",
-        entity_type: "compliance_document",
-        entity_id: document.id,
+      createAuditLog("UPLOAD_COMPLIANCE_DOCUMENT", "compliance_document", document.id, {
+        userId: user.id,
         details: {
           fileName: file.name,
           fileType: file.type,
@@ -152,8 +152,7 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
       );
     }
   } catch (error) {
-    console.error("Error uploading document:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleAPIError(error);
   }
 }
 
@@ -167,7 +166,7 @@ export async function GET(_request: Request, { params }: ProjectDocsContext) {
       error: userError,
     } = await supabase.auth.getUser();
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const { data: documents, error } = await supabase

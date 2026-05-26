@@ -1,20 +1,22 @@
 import { createServerSupabase } from "@/lib/db/supabase-server";
 
 export async function createAuditLog(
-  userId: string,
   action: string,
   entityType: string,
   entityId: string,
-  details?: Record<string, unknown>
+  options?: {
+    userId?: string;
+    details?: Record<string, unknown>;
+  }
 ) {
   const supabase = await createServerSupabase();
 
   const { error } = await supabase.from("audit_logs").insert({
-    user_id: userId,
+    user_id: options?.userId ?? null,
     action,
     entity_type: entityType,
     entity_id: entityId,
-    details,
+    details: options?.details,
   });
 
   if (error) {

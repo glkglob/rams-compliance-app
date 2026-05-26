@@ -74,6 +74,12 @@ export default function Home() {
           </Card>
         </div>
       </div>
+
+      <div className="mt-12 border-t pt-6 text-center text-xs text-muted-foreground">
+        This is a decision-support tool for construction compliance.{' '}
+        <Link href="/privacy" className="underline hover:text-foreground">Privacy</Link> ·{' '}
+        <Link href="/terms" className="underline hover:text-foreground">Terms</Link>
+      </div>
     </div>
   );
 }

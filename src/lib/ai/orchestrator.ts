@@ -1,4 +1,5 @@
 import { createServerSupabase } from '@/lib/db/supabase-server';
+import { createAuditLog } from '@/lib/audit/audit-log';
 import { extractRequirements } from '@/lib/ai/agents/requirement-extraction-agent';
 import { analyzeRAMS } from '@/lib/ai/agents/rams-analysis-agent';
 import { compareCompliance } from '@/lib/ai/agents/compliance-comparison-agent';
@@ -16,7 +17,8 @@ interface ReviewResult {
 }
 
 export async function orchestrateRAMSReview(
-  ramsSubmissionId: string
+  ramsSubmissionId: string,
+  performedByUserId?: string
 ): Promise<ReviewResult> {
   const supabase = await createServerSupabase();
 
@@ -195,11 +197,9 @@ export async function orchestrateRAMSReview(
       })
       .eq('id', ramsSubmissionId);
 
-    // 13. Audit log
-    await supabase.from('audit_logs').insert({
-      action: 'REVIEW_RAMS',
-      entity_type: 'rams_submission',
-      entity_id: ramsSubmissionId,
+    // 13. Audit log (fire-and-forget via helper)
+    createAuditLog('REVIEW_RAMS', 'rams_submission', ramsSubmissionId, {
+      userId: performedByUserId,
       details: {
         decision: scoringResult.decision,
         score: scoringResult.complianceScore,

@@ -158,6 +158,13 @@ export default function DashboardPage() {
             >
               Create New Project
             </Button>
+            <Button
+              className="w-full"
+              variant="outline"
+              onClick={() => router.push("/settings")}
+            >
+              Account Settings
+            </Button>
           </CardContent>
         </Card>
 
