@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 import { generateEmail } from "@/lib/ai/agents/email-generation-agent";
 import { checkRateLimit, rateLimitExceeded } from "@/lib/rate-limit";
 
@@ -17,7 +19,7 @@ export async function POST(_request: Request, { params }: Context) {
       error: userError,
     } = await supabase.auth.getUser();
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const rl = await checkRateLimit(user.id, 'generate-email');
@@ -99,17 +101,13 @@ export async function POST(_request: Request, { params }: Context) {
       .update({ email_generated: true })
       .eq("id", review.id);
 
-    await supabase.from("audit_logs").insert({
-      user_id: user.id,
-      action: "GENERATE_EMAIL",
-      entity_type: "rams_submission",
-      entity_id: ramsId,
+    createAuditLog("GENERATE_EMAIL", "rams_submission", ramsId, {
+      userId: user.id,
       details: { reviewStatus: review.review_status, subject: email.subject },
     });
 
     return NextResponse.json(savedEmail, { status: 200 });
   } catch (error) {
-    console.error("Error generating email:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleAPIError(error);
   }
 }

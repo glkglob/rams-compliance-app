@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
+
+import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
-import { validateFile, sanitiseFilename } from "@/lib/documents/file-validation";
+import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 import { extractTextFromFile } from "@/lib/documents/extract-text";
+import { validateFile } from "@/lib/documents/file-validation";
 
 export const maxDuration = 300;
 
@@ -17,7 +20,7 @@ export async function POST(request: Request, { params }: Context) {
       error: userError,
     } = await supabase.auth.getUser();
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const { data: membership } = await supabase
@@ -102,11 +105,8 @@ export async function POST(request: Request, { params }: Context) {
         })
         .eq("id", submission.id);
 
-      await supabase.from("audit_logs").insert({
-        user_id: user.id,
-        action: "UPLOAD_RAMS",
-        entity_type: "rams_submission",
-        entity_id: submission.id,
+      createAuditLog("UPLOAD_RAMS", "rams_submission", submission.id, {
+        userId: user.id,
         details: {
           fileName: file.name,
           subcontractor: subcontractorName,
@@ -131,8 +131,7 @@ export async function POST(request: Request, { params }: Context) {
       );
     }
   } catch (error) {
-    console.error("Error uploading RAMS:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleAPIError(error);
   }
 }
 
@@ -146,7 +145,7 @@ export async function GET(_request: Request, { params }: Context) {
       error: userError,
     } = await supabase.auth.getUser();
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const { data: membership } = await supabase

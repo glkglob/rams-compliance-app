@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 
 interface DashboardStats {
   totalProjects: number;
@@ -19,7 +20,7 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const { data: profile, error: profileError } = await supabase
@@ -118,7 +119,6 @@ export async function GET() {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error fetching dashboard stats:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleAPIError(error);
   }
 }

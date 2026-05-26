@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { createAuditLog } from "@/lib/audit/audit-log";
 import { hasPermission } from "@/lib/auth/roles";
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { handleAPIError, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
 import { toProjectUpdate } from "@/lib/projects/project-mappers";
 import { updateProjectSchema } from "@/lib/validations/project.schema";
 
@@ -22,7 +24,7 @@ export async function GET(_request: Request, { params }: ProjectRouteContext) {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const [{ data: membership, error: membershipError }, { data: profile, error: profileError }] =
@@ -75,7 +77,7 @@ export async function PATCH(request: Request, { params }: ProjectRouteContext) {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const { data: profile, error: profileError } = await supabase
@@ -89,7 +91,7 @@ export async function PATCH(request: Request, { params }: ProjectRouteContext) {
     }
 
     if (!hasPermission(profile.role, "manage:projects")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      throw new ForbiddenError();
     }
 
     const body = await request.json();
@@ -118,26 +120,14 @@ export async function PATCH(request: Request, { params }: ProjectRouteContext) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    const { error: auditError } = await supabase.from("audit_logs").insert({
-      user_id: user.id,
-      action: "UPDATE_PROJECT",
-      entity_type: "project",
-      entity_id: project.id,
+    createAuditLog("UPDATE_PROJECT", "project", project.id, {
+      userId: user.id,
       details: validatedData,
     });
 
-    if (auditError) {
-      return NextResponse.json({ error: auditError.message }, { status: 500 });
-    }
-
     return NextResponse.json(project, { status: 200 });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.issues }, { status: 400 });
-    }
-
-    console.error("Error updating project:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleAPIError(error);
   }
 }
 
@@ -151,7 +141,7 @@ export async function DELETE(_request: Request, { params }: ProjectRouteContext)
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const { data: profile, error: profileError } = await supabase
@@ -161,7 +151,7 @@ export async function DELETE(_request: Request, { params }: ProjectRouteContext)
       .single();
 
     if (profileError || !profile || profile.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      throw new ForbiddenError();
     }
 
     const { error } = await supabase.from("projects").delete().eq("id", projectId);
@@ -170,20 +160,12 @@ export async function DELETE(_request: Request, { params }: ProjectRouteContext)
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const { error: auditError } = await supabase.from("audit_logs").insert({
-      user_id: user.id,
-      action: "DELETE_PROJECT",
-      entity_type: "project",
-      entity_id: projectId,
+    createAuditLog("DELETE_PROJECT", "project", projectId, {
+      userId: user.id,
     });
-
-    if (auditError) {
-      return NextResponse.json({ error: auditError.message }, { status: 500 });
-    }
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    console.error("Error deleting project:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleAPIError(error);
   }
 }

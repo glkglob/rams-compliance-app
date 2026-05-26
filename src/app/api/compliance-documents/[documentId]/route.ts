@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+
+import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 
 type DocumentRouteContext = {
   params: Promise<{ documentId: string }>;
@@ -15,7 +18,7 @@ export async function DELETE(_request: Request, { params }: DocumentRouteContext
       error: userError,
     } = await supabase.auth.getUser();
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const { data: document, error: docError } = await supabase
@@ -45,17 +48,14 @@ export async function DELETE(_request: Request, { params }: DocumentRouteContext
       return NextResponse.json({ error: deleteError.message }, { status: 500 });
     }
 
-    await supabase.from("audit_logs").insert({
-      user_id: user.id,
-      action: "DELETE_COMPLIANCE_DOCUMENT",
-      entity_type: "compliance_document",
-      entity_id: documentId,
+    // Use centralized audit helper (fire-and-forget)
+    createAuditLog("DELETE_COMPLIANCE_DOCUMENT", "compliance_document", documentId, {
+      userId: user.id,
       details: { fileName: document.file_name },
     });
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    console.error("Error deleting document:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleAPIError(error);
   }
 }

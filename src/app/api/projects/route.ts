@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { createAuditLog } from "@/lib/audit/audit-log";
 import { hasPermission } from "@/lib/auth/roles";
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { handleAPIError, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
 import { toProjectInsert } from "@/lib/projects/project-mappers";
 import { createProjectSchema } from "@/lib/validations/project.schema";
 
@@ -15,7 +17,7 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const { data: profile, error: profileError } = await supabase
@@ -29,7 +31,7 @@ export async function POST(request: Request) {
     }
 
     if (!hasPermission(profile.role, "create:projects")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      throw new ForbiddenError();
     }
 
     const body = await request.json();
@@ -58,26 +60,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: memberError.message }, { status: 500 });
     }
 
-    const { error: auditError } = await supabase.from("audit_logs").insert({
-      user_id: user.id,
-      action: "CREATE_PROJECT",
-      entity_type: "project",
-      entity_id: project.id,
+    // Centralized audit helper (never blocks the response)
+    createAuditLog("CREATE_PROJECT", "project", project.id, {
+      userId: user.id,
       details: validatedData,
     });
 
-    if (auditError) {
-      return NextResponse.json({ error: auditError.message }, { status: 500 });
-    }
-
     return NextResponse.json(project, { status: 201 });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.issues }, { status: 400 });
-    }
-
-    console.error("Error creating project:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleAPIError(error);
   }
 }
 

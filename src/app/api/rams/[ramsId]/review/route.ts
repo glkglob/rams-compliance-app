@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
+
 import { createServerSupabase } from '@/lib/db/supabase-server';
+import { handleAPIError, UnauthorizedError } from '@/lib/error-handling';
 import { orchestrateRAMSReview } from '@/lib/ai/orchestrator';
 import { checkRateLimit, rateLimitExceeded } from '@/lib/rate-limit';
 
@@ -16,7 +18,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const { data: rams, error: ramsError } = await supabase
@@ -40,17 +42,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const allowedRoles = ['admin', 'project_manager', 'reviewer'];
-    if (!allowedRoles.includes(membership.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const rl = await checkRateLimit(user.id, 'review');
-    if (!rl.allowed) {
-      return rateLimitExceeded(rl.resetMs);
-    }
-
-    const result = await orchestrateRAMSReview(ramsId);
+    const result = await orchestrateRAMSReview(ramsId, user.id);
 
     if (!result.success && !result.decision) {
       return NextResponse.json({ error: result.error }, { status: 500 });
@@ -71,7 +63,6 @@ export async function POST(_request: Request, { params }: RouteContext) {
       review,
     }, { status: 200 });
   } catch (error) {
-    console.error('Error reviewing RAMS:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleAPIError(error);
   }
 }
