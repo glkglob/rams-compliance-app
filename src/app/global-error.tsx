@@ -1,7 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
-
 export default function GlobalError({
   error,
   unstable_retry,
@@ -9,13 +7,6 @@ export default function GlobalError({
   error: Error & { digest?: string };
   unstable_retry: () => void;
 }) {
-  useEffect(() => {
-    // Lazy load Sentry to prevent build-time context issues
-    import('@sentry/nextjs').then((Sentry) => {
-      Sentry.captureException(error);
-    });
-  }, [error]);
-
   return (
     <html lang="en">
       <body style={{ margin: 0, fontFamily: 'system-ui, sans-serif', background: '#fff' }}>
