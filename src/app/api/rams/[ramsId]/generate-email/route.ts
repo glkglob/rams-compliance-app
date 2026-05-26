@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { generateEmail } from "@/lib/ai/agents/email-generation-agent";
+import { checkRateLimit, rateLimitExceeded } from "@/lib/rate-limit";
 
 type Context = { params: Promise<{ ramsId: string }> };
 
@@ -15,6 +16,11 @@ export async function POST(_request: Request, { params }: Context) {
     } = await supabase.auth.getUser();
     if (userError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const rl = await checkRateLimit(user.id, 'generate-email');
+    if (!rl.allowed) {
+      return rateLimitExceeded(rl.resetMs);
     }
 
     const { data: rams, error: ramsError } = await supabase

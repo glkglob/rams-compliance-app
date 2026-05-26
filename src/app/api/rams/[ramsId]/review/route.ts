@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/db/supabase-server';
 import { orchestrateRAMSReview } from '@/lib/ai/orchestrator';
+import { checkRateLimit, rateLimitExceeded } from '@/lib/rate-limit';
 
 type RouteContext = {
   params: Promise<{ ramsId: string }>;
@@ -40,6 +41,11 @@ export async function POST(_request: Request, { params }: RouteContext) {
     const allowedRoles = ['admin', 'project_manager', 'reviewer'];
     if (!allowedRoles.includes(membership.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const rl = await checkRateLimit(user.id, 'review');
+    if (!rl.allowed) {
+      return rateLimitExceeded(rl.resetMs);
     }
 
     const result = await orchestrateRAMSReview(ramsId);

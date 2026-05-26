@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/db/supabase-server';
 import { extractRequirements } from '@/lib/ai/agents/requirement-extraction-agent';
+import { checkRateLimit, rateLimitExceeded } from '@/lib/rate-limit';
 
 type RouteContext = {
   params: Promise<{ projectId: string }>;
@@ -25,6 +26,11 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
     if (!membership) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const rl = await checkRateLimit(user.id, 'requirements-extract');
+    if (!rl.allowed) {
+      return rateLimitExceeded(rl.resetMs);
     }
 
     const { data: documents, error: docsError } = await supabase
