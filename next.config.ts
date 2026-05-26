@@ -1,6 +1,10 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // Prevent webpack from bundling these server-only packages.
+  // They use dynamic worker loading, pure-ESM builds, or filesystem access
+  // that webpack cannot statically trace — bundling them breaks next build.
+  serverExternalPackages: ['tesseract.js', 'pdf-parse', 'mammoth', 'xlsx', 'jszip'],
   images: {
     remotePatterns: [
       {

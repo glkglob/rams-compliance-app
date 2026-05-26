@@ -24,7 +24,7 @@ export function validateEnv(): Env {
   });
 
   if (!result.success) {
-    const missingVars = result.error.errors.map(e => e.path.join('.')).join(', ');
+    const missingVars = result.error.issues.map(e => e.path.join('.')).join(', ');
     throw new Error(`Missing or invalid environment variables: ${missingVars}`);
   }
 
