@@ -2,7 +2,6 @@ import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 
 const nextConfig: NextConfig = {
-  // Prevent webpack from bundling these server-only packages
   serverExternalPackages: ['tesseract.js', 'pdf-parse', 'mammoth', 'exceljs', 'jszip'],
 
   images: {
@@ -15,14 +14,11 @@ const nextConfig: NextConfig = {
   },
 
   async headers() {
-    const sentryIngest = 'https://*.ingest.de.sentry.io';
+    const sentryIngest = 'https://*.ingest.de.sentry.io https://*.ingest.sentry.io';
     const supabaseHosts = 'https://*.supabase.co wss://*.supabase.co';
 
-    // Add 'unsafe-eval' only in development (required by React)
-    const scriptSrc =
-      process.env.NODE_ENV === 'development'
-        ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-        : "script-src 'self' 'unsafe-inline'";
+    // unsafe-eval is required by Next.js client runtime in all environments
+    const scriptSrc = "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
 
     const csp = [
       "default-src 'self'",
@@ -42,10 +38,7 @@ const nextConfig: NextConfig = {
         headers: [
           { key: 'Content-Security-Policy', value: csp },
           { key: 'X-DNS-Prefetch-Control', value: 'on' },
-          {
-            key: 'Strict-Transport-Security',
-            value: 'max-age=63072000; includeSubDomains; preload',
-          },
+          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
@@ -58,17 +51,9 @@ const nextConfig: NextConfig = {
 export default withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
-
-  // Disable automatic wrapping of app directory error boundaries.
-  // The global-error page renders outside the React tree during prerendering,
-  // so Sentry's HOC crashes with "Cannot read properties of null (reading 'useContext')".
   autoInstrumentAppDirectory: false,
   automaticVercelMonitors: false,
-
-  // Reduce Sentry build noise
   silent: !process.env.CI,
-
-  // Source map settings
   widenClientFileUpload: true,
   sourcemaps: {
     filesToDeleteAfterUpload: ['.next/static/**/*.map'],
