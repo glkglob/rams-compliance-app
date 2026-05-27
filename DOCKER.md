@@ -112,16 +112,18 @@ Once your Railway service is configured to "Deploy from Image" (pointing at your
 2. Add it as a GitHub secret named `RAILWAY_TOKEN`
 3. The `docker.yml` workflow will:
    - Build and push the Docker image to Docker Hub on every push to `main`
-   - Run `railway deploy --detach` using the linked Railway project/service configuration
+   - Pass the image digest to the deploy job for traceability
+   - Run `railway deploy --detach` with proper error handling using the linked Railway project/service configuration
 
 This means:
 - Push to `main` → Build + push image to Docker Hub → Railway automatically pulls the new image
 
 ### Important Notes on Railway Deploys
 
-- The workflow no longer passes `--image` directly (the Railway CLI in CI does not reliably support it for this use case).
-- Deployment is driven by the service configuration you set in the Railway dashboard (recommended: "Deploy from Image" + your Docker Hub repo).
-- For more precise control (e.g. deploying a specific digest), you can later migrate to Railway's GraphQL API or use their official GitHub integration.
+- The workflow no longer uses the `--image` flag (the Railway CLI in CI does not reliably support it). Deployment is driven by your service configuration in the Railway dashboard.
+- Recommended setup: Configure the service as **"Deploy from Image"** pointing at your Docker Hub repository.
+- The workflow now outputs and logs the exact image digest for better observability.
+- For even cleaner deploys in the future, consider Railway's official GitHub App integration or their Deploy Triggers / GraphQL API.
 
 ### Using Railway's Official GitHub Integration (Alternative)
 
