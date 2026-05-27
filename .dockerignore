@@ -1,0 +1,45 @@
+# Dependencies
+node_modules
+
+# Next.js build output
+.next
+out
+
+# Environment files (never bake secrets into the image)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Git and VCS
+.git
+.gitignore
+
+# Docker (avoid recursive copies)
+Dockerfile
+Dockerfile.*
+.dockerignore
+
+# IDE and OS
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Testing and coverage
+coverage
+.nyc_output
+*.log
+
+# Misc
+README.md
+CLAUDE.md
+AGENTS.md
+*.md
+tsconfig.tsbuildinfo
+vitest.config.ts
+playwright.config.ts
+e2e/

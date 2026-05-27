@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { hasPermission } from "@/lib/auth/roles";
+import { logger } from "@/lib/logging";
 import { createServerSupabaseWithTimeout } from "@/lib/db/supabase-with-timeout";
 import { handleAPIError, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
 import { toProjectInsert } from "@/lib/projects/project-mappers";
@@ -116,7 +117,7 @@ export async function GET() {
       return NextResponse.json({ error: membershipError.message }, { status: 500 });
     }
 
-    const projectIds = memberships?.map((membership) => membership.project_id) ?? [];
+    const projectIds = memberships?.map((membership: { project_id: string }) => membership.project_id) ?? [];
 
     if (projectIds.length === 0) {
       return NextResponse.json([], { status: 200 });
@@ -134,7 +135,7 @@ export async function GET() {
 
     return NextResponse.json(projects ?? [], { status: 200 });
   } catch (error) {
-    console.error("Error fetching projects:", error);
+    logger.error("Error fetching projects", { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

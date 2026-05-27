@@ -1,22 +1,26 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/db/supabase-server';
+import { logger } from '@/lib/logging';
 
 export async function GET() {
   const checks: Record<string, 'ok' | 'error'> = {};
   let healthy = true;
 
-  // --- Supabase DB ---
+  // --- Supabase DB (lightweight check) ---
+  // NOTE: We no longer fail the entire health check on DB errors.
+  // Railway will restart containers aggressively on 5xx/503 from healthchecks.
+  // We report 'degraded' but still return 200 so the app isn't killed during transient DB issues or cold starts.
   try {
     const supabase = await createServerSupabase();
     const { error } = await supabase.from('profiles').select('id').limit(1);
     checks.database = error ? 'error' : 'ok';
     if (error) {
-      console.error('[health] Supabase check failed:', error.message);
-      healthy = false;
+      logger.warn('Health: Supabase check failed (app marked degraded but still healthy for Railway)', { error: error.message });
+      healthy = false; // internal flag only
     }
   } catch (err) {
     checks.database = 'error';
-    console.error('[health] Supabase check threw:', err);
+    logger.warn('Health: Supabase check threw (app marked degraded)', { error: err instanceof Error ? err.message : String(err) });
     healthy = false;
   }
 
@@ -32,13 +36,16 @@ export async function GET() {
       checks.redis = 'ok';
     } catch (err) {
       checks.redis = 'error';
-      console.error('[health] Redis check failed (non-fatal):', err);
+      logger.warn('Health: Redis check failed (non-fatal)', { error: err instanceof Error ? err.message : String(err) });
       // Intentionally NOT setting healthy = false — see comment above.
     }
   }
 
+  // Always return 200 for Railway healthcheck.
+  // We use the "status" field in the body to indicate real health.
+  // Returning 503 too aggressively causes Railway to restart the container on every transient issue.
   return NextResponse.json(
     { status: healthy ? 'ok' : 'degraded', timestamp: new Date().toISOString(), checks },
-    { status: healthy ? 200 : 503 }
+    { status: 200 }
   );
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { logger } from "@/lib/logging";
 import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 
 type DocumentRouteContext = {
@@ -36,7 +37,7 @@ export async function DELETE(_request: Request, { params }: DocumentRouteContext
       .remove([document.storage_path]);
 
     if (storageError) {
-      console.error("Failed to delete from storage:", storageError);
+      logger.error("Failed to delete from storage", { error: String(storageError) });
     }
 
     const { error: deleteError } = await supabase

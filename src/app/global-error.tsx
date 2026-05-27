@@ -1,12 +1,19 @@
 'use client';
 
+import { useEffect } from 'react';
+import * as Sentry from '@sentry/nextjs';
+
 export default function GlobalError({
   error,
-  unstable_retry,
+  reset,
 }: {
   error: Error & { digest?: string };
-  unstable_retry: () => void;
+  reset: () => void;
 }) {
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+
   return (
     <html lang="en">
       <body style={{ margin: 0, fontFamily: 'system-ui, sans-serif', background: '#fff' }}>
@@ -33,7 +40,7 @@ export default function GlobalError({
               </p>
             )}
             <button
-              onClick={unstable_retry}
+              onClick={reset}
               style={{
                 padding: '0.5rem 1rem',
                 borderRadius: '0.375rem',

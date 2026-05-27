@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
+import { logger } from '@/lib/logging';
+
 // Lazily initialised — avoids build-time errors when env vars aren't present yet.
 let redis: Redis | null = null;
 
@@ -66,7 +68,7 @@ export async function checkRateLimit(
   endpoint: RateLimitEndpoint
 ): Promise<RateLimitResult> {
   if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-    console.warn('[rate-limit] Upstash not configured — skipping rate limit check');
+    logger.warn('Upstash not configured — skipping rate limit check');
     const { requests } = LIMITS[endpoint];
     return { allowed: true, limit: requests, remaining: requests, resetMs: 0 };
   }
@@ -76,9 +78,11 @@ export async function checkRateLimit(
   const { success, limit, remaining, reset } = await limiter.limit(userId);
 
   if (!success) {
-    console.warn(
-      `[rate-limit] 429 user=${userId} endpoint=${endpoint} reset=${new Date(reset).toISOString()}`
-    );
+    logger.warn('Rate limit exceeded', {
+      userId,
+      endpoint,
+      reset: new Date(reset).toISOString(),
+    });
   }
 
   return { allowed: success, limit, remaining, resetMs: reset };

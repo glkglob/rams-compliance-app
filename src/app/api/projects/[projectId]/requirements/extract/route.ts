@@ -58,7 +58,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
     const extractionResult = await extractRequirements({
       projectId,
-      documents: documents.map(doc => ({
+      documents: documents.map((doc: { id: string; file_name: string; document_category: string | null; extracted_text: string | null }) => ({
         documentId: doc.id,
         fileName: doc.file_name,
         category: doc.document_category,
