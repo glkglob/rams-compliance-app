@@ -23,15 +23,13 @@ const nextConfig: NextConfig = {
     const sentryIngest = 'https://*.ingest.de.sentry.io https://*.ingest.sentry.io';
     const supabaseHosts = 'https://*.supabase.co wss://*.supabase.co';
 
-    // 'unsafe-eval' is required by the Next.js client runtime; this fallback CSP
-    // is only applied to static asset paths where middleware does not run.
-    const scriptSrc = "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
-
+    // Fallback CSP for static assets (/_next/static, images, etc.) that the middleware
+    // does not intercept. Keep this in sync with the dynamic CSP in src/proxy.ts.
     const csp = [
       "default-src 'self'",
-      scriptSrc,
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-      'font-src https://fonts.gstatic.com',
+      `font-src 'self' data: https://fonts.gstatic.com https://frontend-cdn.perplexity.ai`,
       `img-src 'self' data: blob: ${supabaseHosts}`,
       `connect-src 'self' ${supabaseHosts} ${sentryIngest}`,
       "frame-ancestors 'none'",
