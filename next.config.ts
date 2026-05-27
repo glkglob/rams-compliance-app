@@ -2,16 +2,12 @@ import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ['tesseract.js', 'pdf-parse', 'mammoth', 'exceljs', 'jszip'],
-
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**.supabase.co',
-      },
-    ],
+  // ... existing config ...
+  experimental: {
+    // Prevents the /_global-error prerender crash with @sentry/nextjs + Next.js 16
+    prerenderEarlyExit: false,
   },
+};
 
   async headers() {
     const sentryIngest = 'https://*.ingest.de.sentry.io https://*.ingest.sentry.io';
