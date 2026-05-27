@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
 import { canManageProject } from "@/lib/auth/permissions";
 import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 import { createAuditLog } from "@/lib/audit/audit-log";
+import { logger } from "@/lib/logging";
 import { sendEmail } from "@/lib/email/resend";
 
 type Context = {
@@ -73,7 +74,8 @@ export async function POST(request: Request, { params }: Context) {
     });
 
     if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      logger.error("Failed to add project member", { error: insertError.message, projectId });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     // Audit

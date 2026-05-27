@@ -54,7 +54,8 @@ export async function GET(_request: Request, { params }: ProjectRouteContext) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      logger.error("Failed to fetch project", { error: error.message, projectId });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     if (!project) {
@@ -118,7 +119,8 @@ export async function PATCH(request: Request, { params }: ProjectRouteContext) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      logger.error("Failed to update project", { error: error.message, projectId });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     if (!project) {
@@ -173,7 +175,8 @@ export async function DELETE(_request: Request, { params }: ProjectRouteContext)
     const { error } = await supabase.from("projects").delete().eq("id", projectId);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      logger.error("Failed to delete project", { error: error.message, projectId });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     await createAuditLog("DELETE_PROJECT", "project", projectId, {

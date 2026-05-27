@@ -4,6 +4,7 @@ import { createServerSupabase } from "@/lib/db/supabase-server";
 import { canManageProject } from "@/lib/auth/permissions";
 import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 import { createAuditLog } from "@/lib/audit/audit-log";
+import { logger } from "@/lib/logging";
 
 type Context = {
   params: Promise<{
@@ -46,7 +47,8 @@ export async function DELETE(_request: Request, { params }: Context) {
       .eq("project_id", projectId);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      logger.error("Failed to remove project member", { error: error.message, projectId, memberId });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     // Log the removal
@@ -106,7 +108,8 @@ export async function PATCH(request: Request, { params }: Context) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      logger.error("Failed to update member role", { error: error.message, projectId, memberId });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     await createAuditLog("UPDATE_PROJECT_MEMBER_ROLE", "project", projectId, {

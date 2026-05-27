@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createAuditLog } from '@/lib/audit/audit-log';
 import { createServerSupabase } from '@/lib/db/supabase-server';
 import { handleAPIError, UnauthorizedError } from '@/lib/error-handling';
+import { logger } from '@/lib/logging';
 import { extractRequirements } from '@/lib/ai/agents/requirement-extraction-agent';
 import { checkRateLimit, rateLimitExceeded } from '@/lib/rate-limit';
 
@@ -88,7 +89,8 @@ export async function POST(_request: Request, { params }: RouteContext) {
       .select();
 
     if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      logger.error("Failed to insert requirements", { error: insertError.message });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     await createAuditLog('EXTRACT_REQUIREMENTS', 'project', projectId, {

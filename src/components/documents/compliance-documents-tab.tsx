@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,8 +14,10 @@ import {
   RefreshCw,
   AlertTriangle,
   CheckCircle,
+  Camera,
 } from "lucide-react";
-import { getDocumentCategoryLabel } from "@/lib/documents/file-validation";
+import { getDocumentCategoryLabel, MAX_FILE_SIZE } from "@/lib/documents/file-validation";
+import { useToast } from "@/components/ui/use-toast";
 
 interface ComplianceDocument {
   id: string;
@@ -35,6 +37,81 @@ export function ComplianceDocumentsTab({ projectId }: { projectId: string }) {
   const [selectedCategory, setSelectedCategory] = useState("health_and_safety");
   const [previewDocument, setPreviewDocument] = useState<ComplianceDocument | null>(null);
   const [extractingRequirements, setExtractingRequirements] = useState(false);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const { addToast } = useToast();
+
+  /** Handle photos taken via the native camera input (capture="environment"). */
+  const handleCameraCapture = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      // Client-side size check — mirrors the dropzone maxSize constraint
+      if (file.size > MAX_FILE_SIZE) {
+        addToast({
+          title: "File too large",
+          description: `Photo is ${(file.size / 1024 / 1024).toFixed(1)}MB. Maximum size is 25MB.`,
+          variant: "destructive",
+        });
+        if (cameraInputRef.current) cameraInputRef.current.value = "";
+        return;
+      }
+
+      setUploading(true);
+      setUploadProgress(0);
+
+      try {
+        // Rename with timestamp so photos are easy to identify in the list
+        const timestamp = new Date()
+          .toISOString()
+          .replace(/[:.]/g, "-")
+          .slice(0, 19);
+        const renamedFile = new File(
+          [file],
+          `document-photo-${timestamp}.jpg`,
+          { type: file.type || "image/jpeg" }
+        );
+
+        const formData = new FormData();
+        formData.append("file", renamedFile);
+        formData.append("category", selectedCategory);
+
+        const response = await fetch(
+          `/api/projects/${projectId}/compliance-documents`,
+          { method: "POST", body: formData }
+        );
+
+        if (response.ok) {
+          const newDoc = await response.json();
+          setDocuments((prev) => [newDoc, ...prev]);
+          setUploadProgress(100);
+          addToast({
+            title: "Photo uploaded",
+            description: "Document photo is being processed for text extraction.",
+            variant: "success",
+          });
+        } else {
+          const err = await response.json().catch(() => ({ error: "Upload failed" }));
+          addToast({
+            title: "Upload failed",
+            description: err.error ?? "Could not upload the photo. Please try again.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        addToast({
+          title: "Upload failed",
+          description: "Network error — check your connection and try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setUploading(false);
+        // Reset so the same file can be re-selected if needed
+        if (cameraInputRef.current) cameraInputRef.current.value = "";
+      }
+    },
+    [projectId, selectedCategory, addToast]
+  );
 
   const loadDocuments = useCallback(async () => {
     try {
@@ -234,6 +311,39 @@ export function ComplianceDocumentsTab({ projectId }: { projectId: string }) {
                 </>
               )}
             </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 border-t" />
+              <span className="text-sm text-muted-foreground">or</span>
+              <div className="flex-1 border-t" />
+            </div>
+
+            {/*
+              Native camera input — opens the device camera app directly.
+              Works on mobile without needing getUserMedia browser permissions.
+              On desktop it falls back to a file picker for image files.
+              capture="environment" requests the rear (document-facing) camera.
+            */}
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/jpeg,image/png"
+              capture="environment"
+              className="hidden"
+              onChange={handleCameraCapture}
+            />
+            <Button
+              variant="outline"
+              className="w-full py-6"
+              onClick={() => cameraInputRef.current?.click()}
+              disabled={uploading}
+            >
+              <Camera className="mr-2 h-5 w-5" />
+              Take Photo of Document
+            </Button>
+            <p className="text-sm text-muted-foreground text-center">
+              Opens your device camera. Photo will be processed with OCR to extract text.
+            </p>
 
             {uploading && (
               <div className="space-y-2">

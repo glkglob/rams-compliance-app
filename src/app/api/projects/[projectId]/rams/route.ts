@@ -89,7 +89,8 @@ export async function POST(request: Request, { params }: Context) {
       .single();
 
     if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      logger.error("Failed to insert RAMS submission", { error: insertError.message });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     try {
@@ -159,7 +160,8 @@ export async function GET(_request: Request, { params }: Context) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      logger.error("Failed to fetch RAMS submissions", { error: error.message });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     return NextResponse.json(submissions ?? [], { status: 200 });

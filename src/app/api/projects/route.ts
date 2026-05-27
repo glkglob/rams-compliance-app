@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 
 import { createAuditLog } from "@/lib/audit/audit-log";
-import { hasGlobalPermission } from "@/lib/auth/permissions";
+import { hasPermission } from "@/lib/auth/roles";
 import { logger } from "@/lib/logging";
 import { createServerSupabaseWithTimeout } from "@/lib/db/supabase-with-timeout";
 import { handleAPIError, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
@@ -31,8 +30,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Profile not found" }, { status: 403 });
     }
 
-    const canCreate = await hasGlobalPermission("create:projects");
-    if (!canCreate) {
+    // Use the already-fetched role directly instead of creating a second
+    // Supabase client inside hasGlobalPermission.
+    if (!hasPermission(profile.role, "create:projects")) {
+      logger.warn("Project creation denied", { role: profile.role, userId: user.id });
       throw new ForbiddenError();
     }
 
@@ -46,8 +47,9 @@ export async function POST(request: Request) {
       .single();
 
     if (projectError || !project) {
+      logger.error("Failed to create project", { error: projectError?.message });
       return NextResponse.json(
-        { error: projectError?.message ?? "Failed to create project" },
+        { error: "Failed to create project" },
         { status: 500 }
       );
     }
@@ -59,7 +61,8 @@ export async function POST(request: Request) {
     });
 
     if (memberError) {
-      return NextResponse.json({ error: memberError.message }, { status: 500 });
+      logger.error("Failed to add project member", { error: memberError.message });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     // Centralized audit helper (never blocks the response)
@@ -103,7 +106,8 @@ export async function GET() {
         .order("created_at", { ascending: false });
 
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        logger.error("Failed to fetch projects", { error: error.message });
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
       }
 
       return NextResponse.json(projects ?? [], { status: 200 });
@@ -115,7 +119,8 @@ export async function GET() {
       .eq("user_id", user.id);
 
     if (membershipError) {
-      return NextResponse.json({ error: membershipError.message }, { status: 500 });
+      logger.error("Failed to fetch memberships", { error: membershipError.message });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     const projectIds = memberships?.map((membership: { project_id: string }) => membership.project_id) ?? [];
@@ -131,7 +136,8 @@ export async function GET() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      logger.error("Failed to fetch projects", { error: error.message });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     return NextResponse.json(projects ?? [], { status: 200 });

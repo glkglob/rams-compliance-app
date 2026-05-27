@@ -20,12 +20,16 @@ function buildCsp(nonce: string): string {
     'https://*.ingest.de.sentry.io https://*.ingest.sentry.io';
   const supabaseHosts = 'https://*.supabase.co wss://*.supabase.co';
 
+  // React requires 'unsafe-eval' in development for callstack reconstruction
+  // and other debugging features. Never used in production.
+  const devEval = process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : '';
+
   return [
     "default-src 'self'",
     // Next.js (especially with Turbopack) requires 'unsafe-inline' for some
     // bootstrap scripts even when using nonces + strict-dynamic.
     // We keep the nonce for future hardening.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-inline' https:`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-inline'${devEval} https:`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
     // Next.js self-hosts optimized fonts under /_next/static/media/
     `font-src 'self' data: https://fonts.gstatic.com https://frontend-cdn.perplexity.ai`,

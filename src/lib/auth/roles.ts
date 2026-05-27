@@ -3,6 +3,7 @@ export type UserRole = "admin" | "project_manager" | "reviewer" | "viewer";
 export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   admin: [
     "manage:users",
+    "create:projects",
     "manage:projects",
     "manage:documents",
     "manage:thresholds",

@@ -61,6 +61,12 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
       .upload(storagePath, fileBuffer, { contentType: file.type, upsert: false });
 
     if (uploadError) {
+      logger.error("Supabase storage upload failed", {
+        error: uploadError.message,
+        statusCode: (uploadError as any).statusCode,
+        storagePath,
+        bucket: "documents",
+      });
       return NextResponse.json({ error: "Failed to upload file" }, { status: 500 });
     }
 
@@ -84,7 +90,8 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
       .single();
 
     if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      logger.error("Failed to insert compliance document", { error: insertError.message });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     try {
@@ -183,7 +190,8 @@ export async function GET(_request: Request, { params }: ProjectDocsContext) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      logger.error("Failed to fetch compliance documents", { error: error.message });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     const documentsWithUrls = await Promise.all(
