@@ -23,12 +23,12 @@ export async function createServerSupabaseWithTimeout(timeoutMs: number = 10000)
   }
 
   const cookieStore = await cookies();
-  const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
+  const { supabaseUrl, supabaseKey } = getSupabaseEnv();
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+  const supabase = createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();

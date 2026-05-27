@@ -117,7 +117,7 @@ export async function GET() {
       return NextResponse.json({ error: membershipError.message }, { status: 500 });
     }
 
-    const projectIds = memberships?.map((membership) => membership.project_id) ?? [];
+    const projectIds = memberships?.map((membership: { project_id: string }) => membership.project_id) ?? [];
 
     if (projectIds.length === 0) {
       return NextResponse.json([], { status: 200 });

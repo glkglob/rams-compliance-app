@@ -79,3 +79,27 @@ jobs:
       - name: Image digest
         if: github.event_name != 'pull_request'
         run: echo "Pushed image digest: ${{ steps.meta.outputs.digest }}"
+
+  # ---------------------------------------------------------------------------
+  # Deploy the new image to Railway (only on main + manual, not PRs)
+  # Requires RAILWAY_TOKEN secret (create at https://railway.app/account/tokens)
+  # ---------------------------------------------------------------------------
+  deploy-railway:
+    needs: docker
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (for railway.toml if needed)
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: curl -sSL https://railway.app/install.sh | sh
+
+      - name: Deploy image to Railway
+        run: |
+          # Deploy the newly pushed image.
+          # Works best after you have run `railway link` once locally for the project/service,
+          # or when your Railway project has only one service.
+          railway deploy --image ${{ env.IMAGE_NAME }}:latest --detach || true
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}

@@ -195,7 +195,7 @@ export async function GET(_request: Request, { params }: ProjectDocsContext) {
     }
 
     const documentsWithUrls = await Promise.all(
-      (documents ?? []).map(async (doc) => {
+      (documents ?? []).map(async (doc: { storage_path: string; [key: string]: any }) => {
         const { data: signedUrlData } = await supabase.storage
           .from("documents")
           .createSignedUrl(doc.storage_path, 60 * 60);

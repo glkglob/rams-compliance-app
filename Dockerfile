@@ -15,8 +15,8 @@ FROM node:22-alpine AS base
 # Install wget for healthcheck (alpine doesn't have it by default)
 RUN apk add --no-cache wget
 
-# Upgrade npm to the requested newer version
-RUN npm install -g npm@11.15.0
+# Note: Global npm upgrade temporarily commented out for debugging build issues.
+# RUN npm install -g npm@11.15.0
 
 # -----------------------------------------------------------------------------
 # 1. Dependencies layer (cached as long as package files don't change)

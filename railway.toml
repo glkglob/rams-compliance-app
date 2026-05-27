@@ -1,37 +1,37 @@
 # =============================================================================
 # Railway Configuration - Image-based Deployment (Recommended)
 # =============================================================================
-# We now deploy pre-built Docker images from Docker Hub instead of building
-# the Dockerfile on every deploy. This is faster and more consistent.
+# This project deploys pre-built images from Docker Hub for speed, consistency,
+# and lower build costs on Railway.
 #
-# Image: k1dev2026/rams-compliance-app:latest  (or pin to a sha tag for prod)
+# Image: k1dev2026/rams-compliance-app:latest
+#         (or use a sha tag like k1dev2026/rams-compliance-app:sha-abc123 for prod)
 #
-# To switch:
-#   1. Go to your Railway service → Settings → Source
-#   2. Change from GitHub to "Deploy from Image"
+# How to enable / switch:
+#   1. In Railway dashboard → Your Service → Settings → Source
+#   2. Select "Deploy from Image"
 #   3. Enter: k1dev2026/rams-compliance-app:latest
 #
-# The [build] section below is kept for reference/fallback only.
+# After the first switch, new pushes of the same tag (or sha tags) will deploy.
 # =============================================================================
-
-[build]
-# Disabled for normal deployments (we deploy from Docker Hub image)
-# builder = "DOCKERFILE"
-# dockerfilePath = "Dockerfile"
 
 [deploy]
 runtime = "V2"
 numReplicas = 1
 
-# With Next.js standalone output, the entrypoint is server.js
+# Next.js standalone output → server.js at the root of the standalone bundle
 startCommand = "node server.js"
 
+# Healthcheck — the /api/health route is hardened to always return 200
+# (returns "degraded" in body on non-critical failures to avoid aggressive restarts)
 healthcheckPath = "/api/health"
-healthcheckTimeout = 45
-healthcheckGracePeriod = 20
+healthcheckTimeout = 30
+healthcheckGracePeriod = 30
+
+# Reliability settings
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
 
 sleepApplication = false
 useLegacyStacker = false
 ipv6EgressEnabled = false
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 3

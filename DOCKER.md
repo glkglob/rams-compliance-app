@@ -105,6 +105,17 @@ Example full image references:
 - Prefer Personal Access Tokens over your Docker Hub password
 - Consider private repositories if the image contains sensitive logic
 
+## Automatic Railway Deploys via GitHub Actions
+
+Once you have switched your Railway service to "Deploy from Image", you can make deploys fully automatic:
+
+1. Create a Railway API token at https://railway.app/account/tokens
+2. Add it as a GitHub secret named `RAILWAY_TOKEN`
+3. The `docker.yml` workflow now includes a `deploy-railway` job that automatically runs `railway deploy --image ...` after every successful push to `main`.
+
+This means:
+- Push to `main` → Build + push image to Docker Hub → Automatically deploy to Railway
+
 ## Need Help?
 
 Run `npm run docker:build` locally first to verify everything works before pushing to Docker Hub.

@@ -161,7 +161,7 @@ export async function hardDeleteAccount(userId: string): Promise<{ success: bool
 
     let storageObjectsDeleted = 0;
 
-    for (const project of ownedProjects ?? []) {
+    for (const project of (ownedProjects as { id: string }[] | null) ?? []) {
       const count = await deleteAllStorageObjects(admin, 'documents', `${project.id}/`);
       storageObjectsDeleted += count;
     }
@@ -172,7 +172,7 @@ export async function hardDeleteAccount(userId: string): Promise<{ success: bool
       .select('id, storage_path')
       .eq('submitted_by', userId);
 
-    for (const rams of submittedRams ?? []) {
+    for (const rams of (submittedRams as { id: string; storage_path: string | null }[] | null) ?? []) {
       if (rams.storage_path) {
         await admin.storage.from('documents').remove([rams.storage_path]);
         storageObjectsDeleted++;
@@ -300,8 +300,8 @@ async function deleteAllStorageObjects(
         if (!moreItems || moreItems.length === 0) break;
 
         const moreFiles = moreItems
-          .filter((i) => i.id !== null || i.metadata !== null)
-          .map((i) => (currentPrefix ? `${currentPrefix}${i.name}` : i.name));
+          .filter((i: { id: string | null; metadata: any; name: string }) => i.id !== null || i.metadata !== null)
+          .map((i: { name: string }) => (currentPrefix ? `${currentPrefix}${i.name}` : i.name));
 
         if (moreFiles.length > 0) {
           const { error: removeError } = await admin.storage.from(bucket).remove(moreFiles);

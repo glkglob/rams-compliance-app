@@ -70,7 +70,7 @@ export async function orchestrateRAMSReview(
       .eq('project_id', project.id);
 
     if (existingRequirements && existingRequirements.length > 0) {
-      requirements = existingRequirements.map(r => ({
+      requirements = existingRequirements.map((r: any) => ({
         requirementCode: r.requirement_code,
         requirementText: r.requirement_text,
         category: r.category,
@@ -82,7 +82,7 @@ export async function orchestrateRAMSReview(
     } else {
       const extractionResult = await extractRequirements({
         projectId: project.id,
-        documents: complianceDocs.map(doc => ({
+        documents: complianceDocs.map((doc: any) => ({
           documentId: doc.id,
           fileName: doc.file_name,
           category: doc.document_category,
@@ -96,7 +96,7 @@ export async function orchestrateRAMSReview(
         const { error: reqInsertError } = await supabase
           .from('compliance_requirements')
           .insert(
-            requirements.map(req => ({
+            requirements.map((req: any) => ({
               project_id: project.id,
               source_document_id: req.sourceDocumentId,
               requirement_code: req.requirementCode,
@@ -170,7 +170,7 @@ export async function orchestrateRAMSReview(
       const { error: checksInsertError } = await supabase
         .from('review_checks')
         .insert(
-          comparison.checks.map(check => {
+          comparison.checks.map((check: any) => {
             const matchedReq = requirements.find(r => r.requirementCode === check.requirementId);
             return {
               rams_review_id: review.id,

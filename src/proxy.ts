@@ -36,7 +36,7 @@ function buildCsp(nonce: string): string {
 }
 
 export async function proxy(request: NextRequest) {
-  const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
+  const { supabaseUrl, supabaseKey } = getSupabaseEnv();
 
   // --- Request ID ---
   const requestId =
@@ -73,7 +73,7 @@ export async function proxy(request: NextRequest) {
   supabaseResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
   // --- Supabase Auth ---
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+  const supabase = createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();

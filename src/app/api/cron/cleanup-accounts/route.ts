@@ -44,6 +44,8 @@ export async function POST(request: Request) {
     .not('scheduled_hard_delete_at', 'is', null)
     .lte('scheduled_hard_delete_at', new Date().toISOString());
 
+  type DueAccount = { id: string; email: string | null; scheduled_hard_delete_at: string };
+
   if (queryError) {
     logger.error('Failed to query accounts due for hard deletion', {
       error: String(queryError),
@@ -63,7 +65,7 @@ export async function POST(request: Request) {
   // --- Process each account ---
   const results: Array<{ userId: string; email: string | null; success: boolean; error?: string }> = [];
 
-  for (const account of dueAccounts) {
+  for (const account of (dueAccounts as DueAccount[] | null) ?? []) {
     const result = await hardDeleteAccount(account.id);
 
     results.push({
