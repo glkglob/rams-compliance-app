@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+
+// Force dynamic rendering — requires runtime auth + Supabase.
+export const dynamic = 'force-dynamic';
 import { AlertTriangle, ArrowLeft, Trash2, User } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';

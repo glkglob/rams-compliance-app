@@ -10,6 +10,18 @@ import { getSupabaseEnv } from '@/lib/config/env';
  * (especially in the orchestrator) can cause cascading failures.
  */
 export async function createServerSupabaseWithTimeout(timeoutMs: number = 10000) {
+  // During static generation at build time, return a safe no-op client.
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return {
+      auth: {
+        getUser: async () => ({ data: { user: null }, error: null }),
+      },
+      from: () => ({
+        select: () => Promise.resolve({ data: [], error: null }),
+      }),
+    } as any;
+  }
+
   const cookieStore = await cookies();
   const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
 
