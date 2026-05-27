@@ -22,11 +22,13 @@ function buildCsp(nonce: string): string {
 
   return [
     "default-src 'self'",
-    // 'strict-dynamic' allows scripts loaded by a nonced script to also run,
-    // which is required for Next.js chunk loading.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    // Next.js (especially with Turbopack) requires 'unsafe-inline' for some
+    // bootstrap scripts even when using nonces + strict-dynamic.
+    // We keep the nonce for future hardening.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-inline' https:`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-    'font-src https://fonts.gstatic.com',
+    // Next.js self-hosts optimized fonts under /_next/static/media/
+    `font-src 'self' data: https://fonts.gstatic.com https://frontend-cdn.perplexity.ai`,
     `img-src 'self' data: blob: ${supabaseHosts}`,
     `connect-src 'self' ${supabaseHosts} ${sentryIngest}`,
     "frame-ancestors 'none'",
