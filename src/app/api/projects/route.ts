@@ -3,14 +3,14 @@ import { z } from "zod";
 
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { hasPermission } from "@/lib/auth/roles";
-import { createServerSupabase } from "@/lib/db/supabase-server";
+import { createServerSupabaseWithTimeout } from "@/lib/db/supabase-with-timeout";
 import { handleAPIError, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
 import { toProjectInsert } from "@/lib/projects/project-mappers";
 import { createProjectSchema } from "@/lib/validations/project.schema";
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createServerSupabase();
+    const supabase = await createServerSupabaseWithTimeout(6000);
     const {
       data: { user },
       error: userError,
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
-    const supabase = await createServerSupabase();
+    const supabase = await createServerSupabaseWithTimeout(6000);
     const {
       data: { user },
       error: userError,

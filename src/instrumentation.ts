@@ -1,13 +1,30 @@
 import type { Instrumentation } from 'next';
 
+import { validateEnv } from '@/lib/config/env';
+
 const SENTRY_DSN =
   process.env.NEXT_PUBLIC_SENTRY_DSN ??
   'https://c7e260230d234e1ba00c97e8f7a25e32@o4511401413050368.ingest.de.sentry.io/4511428182278224';
 
 export async function register() {
-  // Only initialise Sentry in the Node.js runtime (not Edge).
-  // Dynamic import keeps Sentry out of the Edge bundle entirely.
+  // Only run in the Node.js runtime (not Edge).
   if (process.env.NEXT_RUNTIME === 'nodejs') {
+    // === CRITICAL: Validate environment variables as early as possible ===
+    // This ensures the app fails fast during startup if required secrets are missing.
+    // Build-time guards inside validateEnv() prevent this from breaking production builds.
+    if (process.env.NODE_ENV !== 'test') {
+      try {
+        validateEnv();
+      } catch (error) {
+        console.error('[Startup] Environment validation failed:', error);
+        // In production we want the process to crash loudly
+        if (process.env.NODE_ENV === 'production') {
+          throw error;
+        }
+      }
+    }
+
+    // Initialise Sentry
     const Sentry = await import('@sentry/nextjs');
     Sentry.init({
       dsn: SENTRY_DSN,

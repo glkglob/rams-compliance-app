@@ -1,4 +1,4 @@
-import { createServerSupabase } from '@/lib/db/supabase-server';
+import { createServerSupabaseWithTimeout } from '@/lib/db/supabase-with-timeout';
 import { createAuditLog } from '@/lib/audit/audit-log';
 import { extractRequirements } from '@/lib/ai/agents/requirement-extraction-agent';
 import { compareCompliance } from '@/lib/ai/agents/compliance-comparison-agent';
@@ -19,7 +19,8 @@ export async function orchestrateRAMSReview(
   ramsSubmissionId: string,
   performedByUserId?: string
 ): Promise<ReviewResult> {
-  const supabase = await createServerSupabase();
+  // Use a longer timeout for the orchestrator as it performs multiple sequential queries
+  const supabase = await createServerSupabaseWithTimeout(15000); // 15 seconds
 
   try {
     // 1. Get RAMS submission

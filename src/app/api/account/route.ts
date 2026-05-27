@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 
-import { createServerSupabase } from '@/lib/db/supabase-server';
+import { createServerSupabaseWithTimeout } from '@/lib/db/supabase-with-timeout';
 import { getSupabaseAdmin } from '@/lib/db/supabase-admin';
 
 export async function DELETE(request: Request) {
   try {
     // 1. Identify the authenticated user (using regular RLS-aware client)
-    const supabase = await createServerSupabase();
+    const supabase = await createServerSupabaseWithTimeout(8000);
     const {
       data: { user },
       error: userError,

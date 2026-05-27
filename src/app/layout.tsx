@@ -1,14 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { validateEnv } from "@/lib/config/env";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { SentryUserContext } from "@/components/sentry-user-context";
 
 import "./globals.css";
-
-if (process.env.NODE_ENV !== "test" && process.env.NEXT_PHASE !== "phase-production-build") {
-  validateEnv();
-}
 
 const inter = Inter({
   subsets: ["latin"],

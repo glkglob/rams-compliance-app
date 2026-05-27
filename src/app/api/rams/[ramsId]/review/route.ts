@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { createServerSupabase } from '@/lib/db/supabase-server';
+import { createServerSupabaseWithTimeout } from '@/lib/db/supabase-with-timeout';
 import { handleAPIError, UnauthorizedError } from '@/lib/error-handling';
 import { orchestrateRAMSReview } from '@/lib/ai/orchestrator';
 import { checkRateLimit, rateLimitExceeded } from '@/lib/rate-limit';
@@ -14,7 +14,7 @@ type RouteContext = {
 export async function POST(_request: Request, { params }: RouteContext) {
   try {
     const { ramsId } = await params;
-    const supabase = await createServerSupabase();
+    const supabase = await createServerSupabaseWithTimeout(8000); // 8 second timeout for auth + lookup
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
