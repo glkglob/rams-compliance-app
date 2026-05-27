@@ -1,16 +1,23 @@
 [build]
-builder = "NIXPACKS"
-buildCommand = "npm run build"
-buildEnvironment = "V3"
+# Use our explicit Dockerfile for reproducible, minimal, secret-safe builds.
+# This completely avoids Nixpacks auto-generating a Dockerfile that leaks
+# secrets via ARG/ENV (the source of all the SecretsUsedInArgOrEnv warnings).
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
 runtime = "V2"
 numReplicas = 1
-startCommand = "npm start"
+# With standalone output the entrypoint is the generated server.js
+startCommand = "node server.js"
 healthcheckPath = "/api/health"
 sleepApplication = false
 useLegacyStacker = false
 ipv6EgressEnabled = false
 restartPolicyType = "ON_FAILURE"
-healthcheckTimeout = 30
+healthcheckTimeout = 45
 restartPolicyMaxRetries = 3
+
+# Optional: give the container a little more time on cold starts / DB init
+# before Railway starts aggressively hitting the health endpoint.
+healthcheckGracePeriod = 20

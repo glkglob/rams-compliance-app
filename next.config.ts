@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   // Without this, tesseract.js, pdf-parse, mammoth, etc. often cause runtime errors or build warnings.
   serverExternalPackages: ['tesseract.js', 'pdf-parse', 'mammoth', 'xlsx', 'jszip'],
 
+  // Enables minimal standalone output for Docker/Railway deploys (much smaller images, faster cold starts).
+  output: 'standalone',
+
   experimental: {
     // Prevents the /_global-error prerender crash with @sentry/nextjs + Next.js 16
     prerenderEarlyExit: false,
