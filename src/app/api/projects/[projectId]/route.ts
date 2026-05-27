@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { hasPermission } from "@/lib/auth/roles";
+import { logger } from "@/lib/logging";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
 import { toProjectUpdate } from "@/lib/projects/project-mappers";
@@ -62,7 +63,7 @@ export async function GET(_request: Request, { params }: ProjectRouteContext) {
 
     return NextResponse.json(project, { status: 200 });
   } catch (error) {
-    console.error("Error fetching project:", error);
+    logger.error("Error fetching project", { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

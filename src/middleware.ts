@@ -4,18 +4,32 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseEnv } from '@/lib/config/env';
 
 /**
- * Edge Middleware for authentication protection.
+ * Edge Middleware for authentication protection and request ID injection.
  *
- * This runs on the Edge runtime and provides server-side protection for
- * sensitive routes. It is the correct and recommended way to handle
- * unauthenticated redirects in Next.js.
+ * Every request gets a unique x-request-id header that propagates through
+ * API routes, logging, and Sentry breadcrumbs for end-to-end correlation.
  */
 export async function middleware(request: NextRequest) {
   const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
 
-  // Create a Supabase client that works in the Edge runtime
-  const supabaseResponse = NextResponse.next({ request });
+  // --- Request ID ---
+  // Honour an incoming header (from load balancer / Railway proxy), or generate one.
+  const requestId =
+    request.headers.get('x-request-id') ??
+    `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
 
+  // Inject into downstream request headers so API routes can read it.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-request-id', requestId);
+
+  const supabaseResponse = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
+
+  // Expose request ID in the response for client-side debugging / support tickets.
+  supabaseResponse.headers.set('x-request-id', requestId);
+
+  // --- Supabase Auth ---
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
@@ -29,28 +43,28 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  // IMPORTANT: Refresh the session if needed.
-  // This must be awaited so cookies are properly set.
+  // Refresh the session if needed.
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Define protected routes that require authentication
+  // --- Protected routes ---
   const protectedPaths = ['/dashboard', '/projects', '/settings'];
 
   const isProtectedPath = protectedPaths.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
+    request.nextUrl.pathname.startsWith(path),
   );
 
-  // Redirect unauthenticated users to login, preserving the intended destination
   if (isProtectedPath && !user) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('redirect', request.nextUrl.pathname + request.nextUrl.search);
-    return NextResponse.redirect(url);
+    const redirectResponse = NextResponse.redirect(url);
+    redirectResponse.headers.set('x-request-id', requestId);
+    return redirectResponse;
   }
 
-  // Add security headers to all API responses from the edge
+  // --- Security headers on API responses ---
   if (request.nextUrl.pathname.startsWith('/api')) {
     supabaseResponse.headers.set('X-Frame-Options', 'DENY');
     supabaseResponse.headers.set('X-Content-Type-Options', 'nosniff');

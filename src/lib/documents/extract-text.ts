@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logging';
+
 interface ExtractionResult {
   status: "complete" | "failed";
   extractedText?: string;
@@ -46,7 +48,7 @@ export async function extractTextFromFile(
         };
     }
   } catch (error) {
-    console.error(`Error extracting text from ${fileName}:`, error);
+    logger.error('Text extraction failed', { fileName, error: error instanceof Error ? error.message : String(error) });
     return {
       status: "failed",
       confidence: 0,
@@ -78,7 +80,7 @@ async function extractFromPDF(buffer: Buffer): Promise<ExtractionResult> {
 
     return await extractFromImage(buffer);
   } catch {
-    console.warn("Native PDF extraction failed, falling back to OCR");
+    logger.warn('Native PDF extraction failed, falling back to OCR');
     return await extractFromImage(buffer);
   }
 }
@@ -97,14 +99,20 @@ async function extractFromWord(buffer: Buffer): Promise<ExtractionResult> {
 }
 
 async function extractFromExcel(buffer: Buffer): Promise<ExtractionResult> {
-  const XLSX = await import("xlsx");
-  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const ExcelJS = await import("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  // exceljs types expect the pre-Node-22 Buffer shape; cast through ArrayBuffer.
+  await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
 
   let allText = "";
-  workbook.SheetNames.forEach((sheetName) => {
-    const sheet = workbook.Sheets[sheetName];
-    const csvText = XLSX.utils.sheet_to_csv(sheet);
-    allText += `Sheet: ${sheetName}\n${csvText}\n\n`;
+  workbook.eachSheet((worksheet, _sheetId) => {
+    const rows: string[] = [];
+    worksheet.eachRow((row) => {
+      const cells = row.values as (string | number | boolean | null | undefined)[];
+      // row.values is 1-indexed (index 0 is undefined), so slice from 1
+      rows.push(cells.slice(1).map((v) => (v != null ? String(v) : "")).join(","));
+    });
+    allText += `Sheet: ${worksheet.name}\n${rows.join("\n")}\n\n`;
   });
 
   return {

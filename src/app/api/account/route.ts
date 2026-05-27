@@ -2,10 +2,31 @@ import { NextResponse } from 'next/server';
 
 import { createServerSupabaseWithTimeout } from '@/lib/db/supabase-with-timeout';
 import { getSupabaseAdmin } from '@/lib/db/supabase-admin';
+import { createAuditLog } from '@/lib/audit/audit-log';
+import { logger } from '@/lib/logging';
+
+/**
+ * Account deletion with soft-delete recovery window.
+ *
+ * Phase 1 (immediate): Marks the profile as `deleted_at = now()` and
+ *   `scheduled_hard_delete_at = now() + 30 days`. The user is signed out.
+ *   All their data remains intact for 30 days.
+ *
+ * Phase 2 (cron / manual): A scheduled job or admin action runs the hard-
+ *   delete for accounts past their retention window.  See `hardDeleteAccount()`.
+ *
+ * The user can request cancellation during the recovery window by contacting
+ * support — an admin clears the `deleted_at` / `scheduled_hard_delete_at` fields.
+ */
+
+const RECOVERY_WINDOW_DAYS = 30;
+
+// -------------------------------------------------------------------------
+// DELETE /api/account — soft-delete (sets deletion schedule)
+// -------------------------------------------------------------------------
 
 export async function DELETE(request: Request) {
   try {
-    // 1. Identify the authenticated user (using regular RLS-aware client)
     const supabase = await createServerSupabaseWithTimeout(8000);
     const {
       data: { user },
@@ -18,7 +39,7 @@ export async function DELETE(request: Request) {
 
     const userId = user.id;
 
-    // Optional confirmation header or body flag from client
+    // Require explicit confirmation from the client.
     const body = await request.json().catch(() => ({}));
     const confirmed = body?.confirmed === true;
 
@@ -26,185 +47,204 @@ export async function DELETE(request: Request) {
       return NextResponse.json(
         {
           error: 'Confirmation required',
-          message: 'You must send { "confirmed": true } to permanently delete your account and associated data.',
+          message:
+            'Send { "confirmed": true } to schedule your account for deletion. ' +
+            `Your data will be retained for ${RECOVERY_WINDOW_DAYS} days before permanent removal.`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const admin = getSupabaseAdmin();
 
-    const deletionSummary: Record<string, number | string | boolean> = {
-      projectsDeleted: 0,
-      ramsSubmissionsDeleted: 0,
-      projectMembershipsRemoved: 0,
-      auditLogsDeleted: 0,
-      storageObjectsDeleted: 0,
-      profileDeleted: false,
-      authUserDeleted: false,
-    };
-
-    // 2. Find all projects created by this user
-    const { data: ownedProjects, error: ownedError } = await admin
+    // --- Check for owned projects and warn the user ---
+    const { data: ownedProjects } = await admin
       .from('projects')
       .select('id, name')
       .eq('created_by', userId);
 
-    if (ownedError) {
-      console.error('Failed to fetch owned projects:', ownedError);
-    }
+    const projectCount = ownedProjects?.length ?? 0;
 
-    const projectsToDelete = ownedProjects ?? [];
+    // --- Soft-delete: mark the profile ---
+    const now = new Date();
+    const hardDeleteAt = new Date(now.getTime() + RECOVERY_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
-    // 3. For each owned project: delete storage files then the project (DB cascades)
-    for (const project of projectsToDelete) {
-      const prefix = `${project.id}/`;
-
-      try {
-        // List and delete storage objects under this project (compliance-docs + rams)
-        const deletedCount = await deleteAllStorageObjects(admin, 'documents', prefix);
-        deletionSummary.storageObjectsDeleted =
-          (deletionSummary.storageObjectsDeleted as number) + deletedCount;
-
-        // Delete project row — DB cascades will handle:
-        // compliance_documents, document_chunks, compliance_requirements,
-        // rams_submissions, rams_reviews, review_checks, generated_emails, project_members
-        const { error: projectDeleteError } = await admin
-          .from('projects')
-          .delete()
-          .eq('id', project.id);
-
-        if (projectDeleteError) {
-          console.error(`Failed to delete project ${project.id}:`, projectDeleteError);
-        } else {
-          deletionSummary.projectsDeleted = (deletionSummary.projectsDeleted as number) + 1;
-        }
-      } catch (err) {
-        console.error(`Error processing storage/project ${project.id}:`, err);
-      }
-    }
-
-    // 4. Delete RAMS submissions the user submitted to *other* projects (they don't own)
-    const { data: submittedRams, error: ramsFetchError } = await admin
-      .from('rams_submissions')
-      .select('id')
-      .eq('submitted_by', userId);
-
-    if (!ramsFetchError && submittedRams && submittedRams.length > 0) {
-      // Delete storage for these RAMS too (they live under their project folders)
-      for (const rams of submittedRams) {
-        // We don't have easy access to storage_path here without another query,
-        // but the project-level delete above already covered owned projects.
-        // For non-owned, we still want to remove the RAMS record + its storage.
-        // Fetch storage path
-        const { data: ramsRow } = await admin
-          .from('rams_submissions')
-          .select('storage_path, project_id')
-          .eq('id', rams.id)
-          .single();
-
-        if (ramsRow?.storage_path) {
-          const { error: storageErr } = await admin.storage
-            .from('documents')
-            .remove([ramsRow.storage_path]);
-          if (!storageErr) {
-            deletionSummary.storageObjectsDeleted =
-              (deletionSummary.storageObjectsDeleted as number) + 1;
-          }
-        }
-      }
-
-      const { error: ramsDeleteError } = await admin
-        .from('rams_submissions')
-        .delete()
-        .eq('submitted_by', userId);
-
-      if (!ramsDeleteError) {
-        deletionSummary.ramsSubmissionsDeleted = submittedRams.length;
-      }
-    }
-
-    // 5. Remove user from any remaining project memberships (projects they didn't create)
-    const { data: memberships, error: memError } = await admin
-      .from('project_members')
-      .delete()
-      .eq('user_id', userId)
-      .select('id');
-
-    if (!memError && memberships) {
-      deletionSummary.projectMembershipsRemoved = memberships.length;
-    }
-
-    // 6. Delete audit logs created by this user (right to erasure)
-    const { data: deletedLogs } = await admin
-      .from('audit_logs')
-      .delete()
-      .eq('user_id', userId)
-      .select('id');
-
-    if (deletedLogs) {
-      deletionSummary.auditLogsDeleted = deletedLogs.length;
-    }
-
-    // 7. Delete the profile (this should now have no blocking references)
-    const { error: profileDeleteError } = await admin
+    const { error: updateError } = await admin
       .from('profiles')
-      .delete()
+      .update({
+        deleted_at: now.toISOString(),
+        scheduled_hard_delete_at: hardDeleteAt.toISOString(),
+      })
       .eq('id', userId);
 
-    if (!profileDeleteError) {
-      (deletionSummary as any).profileDeleted = true;
-    } else {
-      console.error('Profile deletion failed:', profileDeleteError);
+    if (updateError) {
+      logger.error('Failed to soft-delete profile', { userId, error: String(updateError) });
+      return NextResponse.json({ error: 'Failed to schedule account deletion' }, { status: 500 });
     }
 
-    // 8. Finally, delete the Supabase Auth user (this is irreversible)
-    const { error: authDeleteError } = await admin.auth.admin.deleteUser(userId);
+    // If the user owns projects, mark them as pending deletion.
+    if (projectCount > 0) {
+      const { error: projectUpdateError } = await admin
+        .from('projects')
+        .update({ status: 'pending_deletion' })
+        .eq('created_by', userId);
 
-    if (!authDeleteError) {
-      (deletionSummary as any).authUserDeleted = true;
-    } else {
-      console.error('Auth user deletion failed:', authDeleteError);
-      // Still return partial success — profile is already gone
+      if (projectUpdateError) {
+        logger.warn('Failed to mark owned projects as pending_deletion', {
+          userId,
+          error: String(projectUpdateError),
+        });
+      }
     }
 
-    // 9. Best-effort: invalidate all sessions for the deleted user
+    // Audit
+    await createAuditLog('SOFT_DELETE_ACCOUNT', 'profile', userId, {
+      userId,
+      details: {
+        scheduledHardDeleteAt: hardDeleteAt.toISOString(),
+        ownedProjectCount: projectCount,
+      },
+    });
+
+    // Sign the user out — their session is no longer valid.
     try {
-      // Supabase JS v2: use admin.deleteUser which already signs the user out.
-      // We can also attempt to list and revoke sessions if needed in future.
-    } catch (signOutErr) {
-      // Non-fatal
-      console.warn('Session invalidation after deletion (non-fatal):', signOutErr);
+      await supabase.auth.signOut();
+    } catch {
+      // Non-fatal — the profile is already marked for deletion.
     }
+
+    logger.info('Account soft-deleted', {
+      userId,
+      scheduledHardDeleteAt: hardDeleteAt.toISOString(),
+      ownedProjectCount: projectCount,
+    });
 
     return NextResponse.json(
       {
         success: true,
-        message: 'Account and associated personal data have been permanently deleted.',
-        summary: deletionSummary,
+        message:
+          `Your account has been scheduled for permanent deletion on ${hardDeleteAt.toISOString().slice(0, 10)}. ` +
+          `During the ${RECOVERY_WINDOW_DAYS}-day recovery window you can contact support to cancel.`,
+        scheduledHardDeleteAt: hardDeleteAt.toISOString(),
+        ownedProjectsMarkedPendingDeletion: projectCount,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
-    console.error('Account deletion error:', error);
+    logger.error('Account deletion error', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json(
       {
         error: 'Account deletion failed',
         message: error instanceof Error ? error.message : 'An unexpected error occurred',
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-/**
- * Recursively lists and removes all objects under a storage prefix.
- * Handles pagination and nested "folders" (Supabase Storage is flat but prefixes act as folders).
- */
+// -------------------------------------------------------------------------
+// Hard-delete — called by cron job or admin action for accounts past their
+// recovery window.  NOT exposed as a public API route.
+// -------------------------------------------------------------------------
+
+export async function hardDeleteAccount(userId: string): Promise<{ success: boolean; error?: string }> {
+  const admin = getSupabaseAdmin();
+
+  try {
+    // 1. Find and delete storage objects for owned projects
+    const { data: ownedProjects } = await admin
+      .from('projects')
+      .select('id')
+      .eq('created_by', userId);
+
+    let storageObjectsDeleted = 0;
+
+    for (const project of ownedProjects ?? []) {
+      const count = await deleteAllStorageObjects(admin, 'documents', `${project.id}/`);
+      storageObjectsDeleted += count;
+    }
+
+    // 2. Delete RAMS storage for non-owned submissions
+    const { data: submittedRams } = await admin
+      .from('rams_submissions')
+      .select('id, storage_path')
+      .eq('submitted_by', userId);
+
+    for (const rams of submittedRams ?? []) {
+      if (rams.storage_path) {
+        await admin.storage.from('documents').remove([rams.storage_path]);
+        storageObjectsDeleted++;
+      }
+    }
+
+    // 3. Delete owned projects (DB cascades handle children)
+    if (ownedProjects && ownedProjects.length > 0) {
+      await admin
+        .from('projects')
+        .delete()
+        .eq('created_by', userId);
+    }
+
+    // 4. Delete non-owned RAMS submissions
+    await admin
+      .from('rams_submissions')
+      .delete()
+      .eq('submitted_by', userId);
+
+    // 5. Remove project memberships
+    await admin
+      .from('project_members')
+      .delete()
+      .eq('user_id', userId);
+
+    // 6. Delete audit logs (right to erasure)
+    await admin
+      .from('audit_logs')
+      .delete()
+      .eq('user_id', userId);
+
+    // 7. Delete profile
+    await admin
+      .from('profiles')
+      .delete()
+      .eq('id', userId);
+
+    // 8. Delete auth user (irreversible)
+    const { error: authError } = await admin.auth.admin.deleteUser(userId);
+    if (authError) {
+      logger.error('Hard delete: auth user deletion failed', { userId, error: String(authError) });
+      return { success: false, error: `Auth deletion failed: ${authError.message}` };
+    }
+
+    logger.info('Account hard-deleted', { userId, storageObjectsDeleted });
+
+    await createAuditLog('HARD_DELETE_ACCOUNT', 'profile', userId, {
+      details: { storageObjectsDeleted },
+    });
+
+    return { success: true };
+  } catch (error) {
+    logger.error('Hard delete error', {
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Hard delete failed',
+    };
+  }
+}
+
+// -------------------------------------------------------------------------
+// Storage helpers (unchanged logic, structured logging)
+// -------------------------------------------------------------------------
+
 async function deleteAllStorageObjects(
   admin: ReturnType<typeof getSupabaseAdmin>,
   bucket: string,
-  prefix: string
+  prefix: string,
 ): Promise<number> {
   let deleted = 0;
   const batchSize = 100;
@@ -217,7 +257,10 @@ async function deleteAllStorageObjects(
     });
 
     if (error || !items) {
-      console.error(`Storage list error under ${currentPrefix}:`, error);
+      logger.error('Storage list error during account deletion', {
+        prefix: currentPrefix,
+        error: error ? String(error) : 'no items',
+      });
       return;
     }
 
@@ -228,7 +271,6 @@ async function deleteAllStorageObjects(
       const fullPath = currentPrefix ? `${currentPrefix}${item.name}` : item.name;
 
       if (item.id === null && item.metadata === null) {
-        // This is a "folder" placeholder in Supabase Storage
         foldersToRecurse.push(`${fullPath}/`);
       } else {
         filesToRemove.push(fullPath);
@@ -240,18 +282,15 @@ async function deleteAllStorageObjects(
       if (!removeError) {
         deleted += filesToRemove.length;
       } else {
-        console.error('Storage remove error:', removeError);
+        logger.error('Storage remove error during account deletion', { error: String(removeError) });
       }
     }
 
-    // Recurse into subfolders
     for (const folder of foldersToRecurse) {
       await listAndDelete(folder);
     }
 
-    // Handle pagination if we got exactly batchSize items (there might be more)
     if (items.length === batchSize) {
-      // Simple approach: list with higher offset (Supabase list doesn't have perfect cursor here, but works for our scale)
       let offset = batchSize;
       while (true) {
         const { data: moreItems } = await admin.storage.from(bucket).list(currentPrefix, {

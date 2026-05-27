@@ -1,5 +1,6 @@
 import { createServerSupabaseWithTimeout } from '@/lib/db/supabase-with-timeout';
 import { createAuditLog } from '@/lib/audit/audit-log';
+import { logger } from '@/lib/logging';
 import { extractRequirements } from '@/lib/ai/agents/requirement-extraction-agent';
 import { compareCompliance } from '@/lib/ai/agents/compliance-comparison-agent';
 import { generateExplanation } from '@/lib/ai/agents/explanation-agent';
@@ -106,7 +107,7 @@ export async function orchestrateRAMSReview(
             }))
           );
         if (reqInsertError) {
-          console.error('Failed to batch-insert requirements:', reqInsertError);
+          logger.error('Failed to batch-insert requirements', { error: String(reqInsertError) });
         }
       }
     }
@@ -183,7 +184,7 @@ export async function orchestrateRAMSReview(
           })
         );
       if (checksInsertError) {
-        console.error('Failed to batch-insert review checks:', checksInsertError);
+        logger.error('Failed to batch-insert review checks', { error: String(checksInsertError) });
       }
     }
 
@@ -196,7 +197,7 @@ export async function orchestrateRAMSReview(
     });
 
     if (emailError) {
-      console.error('Failed to save email draft:', emailError);
+      logger.error('Failed to save email draft', { error: String(emailError) });
     }
 
     // 11. Update RAMS submission
@@ -227,7 +228,10 @@ export async function orchestrateRAMSReview(
       complianceScore: scoringResult.complianceScore,
     };
   } catch (error) {
-    console.error('Orchestrator error:', error);
+    logger.error('Orchestrator error', {
+      ramsSubmissionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
 
     await supabase
       .from('rams_submissions')

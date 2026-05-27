@@ -3,7 +3,7 @@ import { withSentryConfig } from '@sentry/nextjs';
 
 const nextConfig: NextConfig = {
   // Prevent webpack from bundling these server-only packages
-  serverExternalPackages: ['tesseract.js', 'pdf-parse', 'mammoth', 'xlsx', 'jszip'],
+  serverExternalPackages: ['tesseract.js', 'pdf-parse', 'mammoth', 'exceljs', 'jszip'],
 
   images: {
     remotePatterns: [

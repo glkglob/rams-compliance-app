@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { logger } from "@/lib/logging";
 import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 import { extractTextFromFile } from "@/lib/documents/extract-text";
 import { validateFile, sanitiseFilename } from "@/lib/documents/file-validation";
@@ -171,7 +172,7 @@ export async function GET(_request: Request, { params }: Context) {
 
     return NextResponse.json(submissions ?? [], { status: 200 });
   } catch (error) {
-    console.error("Error fetching RAMS:", error);
+    logger.error("Error fetching RAMS", { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
