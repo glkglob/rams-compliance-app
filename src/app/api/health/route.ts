@@ -20,7 +20,10 @@ export async function GET() {
     healthy = false;
   }
 
-  // --- Upstash Redis (optional — only checked when configured) ---
+  // --- Upstash Redis (optional — non-fatal) ---
+  // Redis is an enhancement for rate limiting that fails open when unavailable.
+  // A Redis outage must NOT block Railway's deployment healthcheck — the app can
+  // still serve requests; it just won't rate-limit until Redis recovers.
   if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
     try {
       const { Redis } = await import('@upstash/redis');
@@ -29,8 +32,8 @@ export async function GET() {
       checks.redis = 'ok';
     } catch (err) {
       checks.redis = 'error';
-      console.error('[health] Redis check failed:', err);
-      healthy = false;
+      console.error('[health] Redis check failed (non-fatal):', err);
+      // Intentionally NOT setting healthy = false — see comment above.
     }
   }
 
