@@ -45,3 +45,6 @@ supabase/.temp/
 # playwright
 playwright-report/
 test-results/
+
+# Sentry Config File
+.env.sentry-build-plugin

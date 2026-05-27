@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
+import { logger } from "@/lib/logging";
 import { chunkText } from "@/lib/documents/chunk-text";
 import { extractTextFromFile } from "@/lib/documents/extract-text";
 import { validateFile } from "@/lib/documents/file-validation";
@@ -54,7 +55,10 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
     }
 
     const fileBuffer = Buffer.from(await file.arrayBuffer());
-    const safeName = sanitiseFilename(file.name);
+    const safeName = file.name
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .replace(/\.{2,}/g, '_')
+      .slice(0, 200);
     const storagePath = `${projectId}/compliance-docs/${Date.now()}-${safeName}`;
 
     const { error: uploadError } = await supabase.storage
@@ -101,7 +105,7 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
         .eq("id", document.id);
 
       if (updateError) {
-        console.error("Failed to update document with extraction results:", updateError);
+        logger.error("Failed to update document with extraction results", { error: String(updateError) });
       }
 
       if (extractionResult.extractedText) {
@@ -117,11 +121,11 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
           .insert(chunkRecords);
 
         if (chunksError) {
-          console.error("Failed to create document chunks:", chunksError);
+          logger.error("Failed to create document chunks", { error: String(chunksError) });
         }
       }
 
-      createAuditLog("UPLOAD_COMPLIANCE_DOCUMENT", "compliance_document", document.id, {
+      await createAuditLog("UPLOAD_COMPLIANCE_DOCUMENT", "compliance_document", document.id, {
         userId: user.id,
         details: {
           fileName: file.name,
@@ -194,7 +198,7 @@ export async function GET(_request: Request, { params }: ProjectDocsContext) {
     }
 
     const documentsWithUrls = await Promise.all(
-      (documents ?? []).map(async (doc) => {
+      (documents ?? []).map(async (doc: { storage_path: string; [key: string]: any }) => {
         const { data: signedUrlData } = await supabase.storage
           .from("documents")
           .createSignedUrl(doc.storage_path, 60 * 60);
@@ -204,7 +208,7 @@ export async function GET(_request: Request, { params }: ProjectDocsContext) {
 
     return NextResponse.json(documentsWithUrls, { status: 200 });
   } catch (error) {
-    console.error("Error fetching documents:", error);
+    logger.error("Error fetching documents", { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

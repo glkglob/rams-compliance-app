@@ -9,10 +9,14 @@ export async function sendEmail(
     return { success: false, error: "RESEND_API_KEY is not configured" };
   }
 
+  if (!process.env.RESEND_FROM_EMAIL) {
+    return { success: false, error: "RESEND_FROM_EMAIL is not configured" };
+  }
+
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   const { data, error } = await resend.emails.send({
-    from: "RAMS Compliance <noreply@rams-compliance.com>",
+    from: process.env.RESEND_FROM_EMAIL,
     to,
     subject,
     html: body.replace(/\n/g, "<br>"),

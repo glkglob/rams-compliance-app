@@ -45,13 +45,13 @@ supabase db push
 
 ## Deployment
 
-Deployed on Railway. The `railway.toml` at the repo root defines the build and start commands. Push to `main` to trigger a deploy.
+Production deploys use pre-built Docker images from Docker Hub (see [DOCKER.md](DOCKER.md) for full details).
 
-```
-Build:  npm run build
-Start:  npm start
-Health: /api/health
-```
+- Image: `k1dev2026/rams-compliance-app:latest`
+- Railway is configured for image-based deploys (`railway.toml`)
+- GitHub Actions builds + pushes on every push to `main`, then automatically triggers a Railway deploy (when `RAILWAY_TOKEN` secret is set)
+
+Health endpoint: `/api/health` (always returns 200, reports `degraded` status in body when non-critical services are down).
 
 ## Scripts
 

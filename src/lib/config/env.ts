@@ -15,20 +15,61 @@ function getRequiredEnv(name: string): string {
 }
 
 export function getSupabaseEnv() {
-  return {
-    supabaseUrl: getRequiredEnv('NEXT_PUBLIC_SUPABASE_URL'),
-    supabaseAnonKey: getRequiredEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
-  };
+  // NEXT_PUBLIC_* vars MUST be accessed as static string literals so the
+  // Next.js bundler can inline them into the client bundle. Dynamic access
+  // like `process.env[name]` is invisible to the compiler and will be
+  // undefined on the client side.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  // Support both the new Publishable Key (recommended) and the legacy Anon Key
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      return { supabaseUrl: '', supabaseKey: '' };
+    }
+    throw new Error(
+      'Missing required environment variables: NEXT_PUBLIC_SUPABASE_URL and (NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY)',
+    );
+  }
+
+  // Helpful log + warning when running locally
+  if (process.env.NODE_ENV !== 'production' && typeof window === 'undefined') {
+    const isLocal = supabaseUrl.includes('127.0.0.1') || supabaseUrl.includes('localhost');
+
+    if (isLocal) {
+      console.log(`[Supabase] ✅ Using LOCAL instance: ${supabaseUrl}`);
+    } else {
+      console.warn(
+        `\n[Supabase] ⚠️  WARNING: You are using REMOTE Supabase in development!\n` +
+        `             URL: ${supabaseUrl}\n` +
+        `             Consider running "npm run dev:local" instead.\n`
+      );
+    }
+  }
+
+  return { supabaseUrl, supabaseKey };
 }
 
 const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+  // New recommended public key (publishable). Legacy anon key supported for backward compatibility.
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   OPENAI_API_KEY: z.string().min(1),
   RESEND_API_KEY: z.string().min(1),
+  // Optional — sendEmail() degrades gracefully when this is unset, so we don't
+  // want a missing value to crash the process at startup on Railway.
+  RESEND_FROM_EMAIL: z.string().min(1).optional(),
   DATABASE_URL: z.string().min(1),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  // Optional — rate limiting is disabled when absent (dev convenience).
+  // Validated as required in production further below.
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -36,17 +77,37 @@ export type Env = z.infer<typeof envSchema>;
 export function validateEnv(): Env {
   const result = envSchema.safeParse({
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
+    RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
   });
 
   if (!result.success) {
     const missingVars = result.error.issues.map(e => e.path.join('.')).join(', ');
     throw new Error(`Missing or invalid environment variables: ${missingVars}`);
+  }
+
+  // Ensure at least one public Supabase key is provided
+  const hasPublicKey = !!result.data.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || !!result.data.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!hasPublicKey) {
+    throw new Error('Missing Supabase public key: set either NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  }
+
+  const { NODE_ENV, UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } = result.data;
+  const upstashMissing = !UPSTASH_REDIS_REST_URL || !UPSTASH_REDIS_REST_TOKEN;
+  if (upstashMissing) {
+    const msg = 'UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are not set — rate limiting will be disabled.';
+    if (NODE_ENV === 'production') {
+      throw new Error(msg);
+    }
+    console.warn(`[env] ${msg}`);
   }
 
   return result.data;

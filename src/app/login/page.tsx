@@ -3,6 +3,11 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+// Force dynamic rendering. This page (and its layout tree) requires runtime
+// Supabase credentials and must never be statically prerendered at build time
+// (when env vars are absent in the Docker/Railway build environment).
+export const dynamic = 'force-dynamic';
+
 import { Button } from "@/components/ui/button";
 import {
   Card,

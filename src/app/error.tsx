@@ -1,6 +1,5 @@
 'use client';
 
-import * as Sentry from '@sentry/nextjs';
 import { useEffect } from 'react';
 
 export default function ErrorPage({
@@ -11,7 +10,10 @@ export default function ErrorPage({
   unstable_retry: () => void;
 }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    // Lazy load Sentry to prevent build-time context issues
+    import('@sentry/nextjs').then((Sentry) => {
+      Sentry.captureException(error);
+    });
   }, [error]);
 
   return (

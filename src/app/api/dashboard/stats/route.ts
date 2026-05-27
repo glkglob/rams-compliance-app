@@ -59,17 +59,17 @@ export async function GET() {
         {
           totalProjects: totalProjects ?? 0,
           pendingReviews:
-            ramsData?.filter((submission) => submission.review_status === "pending")
+            ramsData?.filter((submission: { review_status: string }) => submission.review_status === "pending")
               .length ?? 0,
           approvedRAMS:
-            ramsData?.filter((submission) => submission.review_status === "approved")
+            ramsData?.filter((submission: { review_status: string }) => submission.review_status === "approved")
               .length ?? 0,
           rejectedRAMS:
-            ramsData?.filter((submission) => submission.review_status === "rejected")
+            ramsData?.filter((submission: { review_status: string }) => submission.review_status === "rejected")
               .length ?? 0,
           manualReviews:
             ramsData?.filter(
-              (submission) => submission.review_status === "manual_review"
+              (submission: { review_status: string }) => submission.review_status === "manual_review"
             ).length ?? 0,
         } satisfies DashboardStats,
         { status: 200 }
@@ -85,7 +85,7 @@ export async function GET() {
       return NextResponse.json({ error: membershipError.message }, { status: 500 });
     }
 
-    const projectIds = memberships?.map((membership) => membership.project_id) ?? [];
+    const projectIds = memberships?.map((membership: { project_id: string }) => membership.project_id) ?? [];
 
     if (projectIds.length === 0) {
       return NextResponse.json(baseStats, { status: 200 });
@@ -104,16 +104,16 @@ export async function GET() {
       {
         totalProjects: projectIds.length,
         pendingReviews:
-          ramsData?.filter((submission) => submission.review_status === "pending")
+          ramsData?.filter((submission: { review_status: string }) => submission.review_status === "pending")
             .length ?? 0,
         approvedRAMS:
-          ramsData?.filter((submission) => submission.review_status === "approved")
+          ramsData?.filter((submission: { review_status: string }) => submission.review_status === "approved")
             .length ?? 0,
         rejectedRAMS:
-          ramsData?.filter((submission) => submission.review_status === "rejected")
+          ramsData?.filter((submission: { review_status: string }) => submission.review_status === "rejected")
             .length ?? 0,
         manualReviews:
-          ramsData?.filter((submission) => submission.review_status === "manual_review")
+          ramsData?.filter((submission: { review_status: string }) => submission.review_status === "manual_review")
             .length ?? 0,
       } satisfies DashboardStats,
       { status: 200 }

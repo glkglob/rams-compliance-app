@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "dev:local": "npx dotenv-cli -e .env.development.local -- next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -17,7 +18,29 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "type-check": "tsc --noEmit",
-    "validate": "npm run lint && npm run type-check && npm run test"
+    "validate": "npm run lint && npm run type-check && npm run test",
+
+    "// Supabase local/remote helpers": "",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:status": "supabase status",
+    "db:diff:local": "supabase db diff",
+    "db:diff:remote": "supabase db diff --linked",
+    "db:sync:local-to-remote": "echo '⚠️  This will push local migrations to remote. Make sure you have the correct remote linked.' && supabase db push --linked --yes",
+
+    "supabase:switch:local": "npx tsx scripts/switch-supabase.ts local",
+    "supabase:switch:remote": "npx tsx scripts/switch-supabase.ts remote",
+    "supabase:mode": "npx tsx scripts/switch-supabase.ts status",
+
+    "// Docker (optimized for Railway + Docker Hub)": "",
+    "docker:build": "docker build --platform linux/amd64 -t rams-compliance-app .",
+    "docker:build:clean": "docker build --no-cache --platform linux/amd64 -t rams-compliance-app .",
+    "docker:build:hub": "docker build --platform linux/amd64 -t k1dev2026/rams-compliance-app:latest .",
+    "docker:build:clean:hub": "docker build --no-cache --platform linux/amd64 -t k1dev2026/rams-compliance-app:latest .",
+    "docker:push": "docker push k1dev2026/rams-compliance-app:latest",
+    "docker:build:push": "npm run docker:build:hub && npm run docker:push",
+    "docker:run": "docker run -p 3000:3000 --env-file .env.local rams-compliance-app",
+    "docker:run:prod": "docker run -p 3000:3000 k1dev2026/rams-compliance-app:latest"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -37,23 +60,24 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.3.0",
+    "exceljs": "^4.4.0",
     "jszip": "^3.10.1",
     "lucide-react": "^1.16.0",
     "mammoth": "^1.12.0",
     "next": "16.2.6",
     "openai": "^6.39.0",
     "pdf-parse": "^2.4.5",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "react-dropzone": "^15.0.0",
     "react-hook-form": "^7.76.1",
-    "resend": "^6.12.3",
+    "resend": "^6.12.4",
     "tailwind-merge": "^3.6.0",
     "tesseract.js": "^7.0.0",
-    "xlsx": "^0.18.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "dotenv-cli": "^7.4.1",
     "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
@@ -70,5 +94,10 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.7"
+  },
+  "overrides": {
+    "exceljs": {
+      "uuid": "^11.1.0"
+    }
   }
 }

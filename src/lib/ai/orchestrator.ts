@@ -1,5 +1,6 @@
-import { createServerSupabase } from '@/lib/db/supabase-server';
+import { createServerSupabaseWithTimeout } from '@/lib/db/supabase-with-timeout';
 import { createAuditLog } from '@/lib/audit/audit-log';
+import { logger } from '@/lib/logging';
 import { extractRequirements } from '@/lib/ai/agents/requirement-extraction-agent';
 import { compareCompliance } from '@/lib/ai/agents/compliance-comparison-agent';
 import { generateExplanation } from '@/lib/ai/agents/explanation-agent';
@@ -19,7 +20,8 @@ export async function orchestrateRAMSReview(
   ramsSubmissionId: string,
   performedByUserId?: string
 ): Promise<ReviewResult> {
-  const supabase = await createServerSupabase();
+  // Use a longer timeout for the orchestrator as it performs multiple sequential queries
+  const supabase = await createServerSupabaseWithTimeout(15000); // 15 seconds
 
   try {
     // 1. Get RAMS submission
@@ -68,7 +70,7 @@ export async function orchestrateRAMSReview(
       .eq('project_id', project.id);
 
     if (existingRequirements && existingRequirements.length > 0) {
-      requirements = existingRequirements.map(r => ({
+      requirements = existingRequirements.map((r: any) => ({
         requirementCode: r.requirement_code,
         requirementText: r.requirement_text,
         category: r.category,
@@ -80,7 +82,7 @@ export async function orchestrateRAMSReview(
     } else {
       const extractionResult = await extractRequirements({
         projectId: project.id,
-        documents: complianceDocs.map(doc => ({
+        documents: complianceDocs.map((doc: any) => ({
           documentId: doc.id,
           fileName: doc.file_name,
           category: doc.document_category,
@@ -90,16 +92,23 @@ export async function orchestrateRAMSReview(
 
       requirements = extractionResult.requirements;
 
-      for (const req of requirements) {
-        await supabase.from('compliance_requirements').insert({
-          project_id: project.id,
-          source_document_id: req.sourceDocumentId,
-          requirement_code: req.requirementCode,
-          requirement_text: req.requirementText,
-          category: req.category,
-          severity: req.severity,
-          source_excerpt: req.sourceExcerpt,
-        });
+      if (requirements.length > 0) {
+        const { error: reqInsertError } = await supabase
+          .from('compliance_requirements')
+          .insert(
+            requirements.map((req: any) => ({
+              project_id: project.id,
+              source_document_id: req.sourceDocumentId,
+              requirement_code: req.requirementCode,
+              requirement_text: req.requirementText,
+              category: req.category,
+              severity: req.severity,
+              source_excerpt: req.sourceExcerpt,
+            }))
+          );
+        if (reqInsertError) {
+          logger.error('Failed to batch-insert requirements', { error: String(reqInsertError) });
+        }
       }
     }
 
@@ -157,17 +166,26 @@ export async function orchestrateRAMSReview(
     }
 
     // 9. Save review checks
-    for (const check of comparison.checks) {
-      const matchedReq = requirements.find(r => r.requirementCode === check.requirementId);
-      await supabase.from('review_checks').insert({
-        rams_review_id: review.id,
-        requirement_id: matchedReq?.requirementCode,
-        status: check.status,
-        severity: check.severity,
-        score: check.score,
-        rams_evidence: check.ramsEvidence,
-        explanation: check.explanation,
-      });
+    if (comparison.checks.length > 0) {
+      const { error: checksInsertError } = await supabase
+        .from('review_checks')
+        .insert(
+          comparison.checks.map((check: any) => {
+            const matchedReq = requirements.find(r => r.requirementCode === check.requirementId);
+            return {
+              rams_review_id: review.id,
+              requirement_id: matchedReq?.requirementCode,
+              status: check.status,
+              severity: check.severity,
+              score: check.score,
+              rams_evidence: check.ramsEvidence,
+              explanation: check.explanation,
+            };
+          })
+        );
+      if (checksInsertError) {
+        logger.error('Failed to batch-insert review checks', { error: String(checksInsertError) });
+      }
     }
 
     // 10. Save email draft
@@ -179,7 +197,7 @@ export async function orchestrateRAMSReview(
     });
 
     if (emailError) {
-      console.error('Failed to save email draft:', emailError);
+      logger.error('Failed to save email draft', { error: String(emailError) });
     }
 
     // 11. Update RAMS submission
@@ -193,8 +211,8 @@ export async function orchestrateRAMSReview(
       })
       .eq('id', ramsSubmissionId);
 
-    // 13. Audit log (fire-and-forget via helper)
-    createAuditLog('REVIEW_RAMS', 'rams_submission', ramsSubmissionId, {
+    // 13. Audit log
+    await createAuditLog('REVIEW_RAMS', 'rams_submission', ramsSubmissionId, {
       userId: performedByUserId,
       details: {
         decision: scoringResult.decision,
@@ -210,7 +228,10 @@ export async function orchestrateRAMSReview(
       complianceScore: scoringResult.complianceScore,
     };
   } catch (error) {
-    console.error('Orchestrator error:', error);
+    logger.error('Orchestrator error', {
+      ramsSubmissionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
 
     await supabase
       .from('rams_submissions')

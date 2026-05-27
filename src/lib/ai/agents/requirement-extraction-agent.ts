@@ -1,5 +1,6 @@
 import { generateCompletion } from '@/lib/ai/openai-client';
 import { REQUIREMENT_EXTRACTION_PROMPT } from '@/lib/ai/prompts';
+import { logger } from '@/lib/logging';
 import {
   RequirementExtractionOutputSchema,
   type RequirementExtractionInput,
@@ -39,7 +40,10 @@ export async function extractRequirements(
 
       requirements.push(...docRequirements);
     } catch (error) {
-      console.error(`Failed to extract requirements from ${doc.fileName}:`, error);
+      logger.error('Failed to extract requirements from document', {
+        fileName: doc.fileName,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

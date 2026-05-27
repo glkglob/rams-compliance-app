@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 
+import { logger } from '@/lib/logging';
+
 export class AppError extends Error {
   constructor(
     message: string,
@@ -43,7 +45,10 @@ export interface APIErrorResponse {
 }
 
 export function handleAPIError(error: unknown): NextResponse<APIErrorResponse> {
-  console.error('API Error:', error);
+  logger.error('API error', {
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+  });
 
   if (error instanceof AppError) {
     return NextResponse.json(

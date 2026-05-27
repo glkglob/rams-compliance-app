@@ -1,16 +1,14 @@
 'use client';
 
-import * as Sentry from '@sentry/nextjs';
 import { useEffect } from 'react';
+import * as Sentry from '@sentry/nextjs';
 
-// Catches errors thrown inside the root layout itself (e.g. layout.tsx crashes).
-// Must supply its own <html> and <body> because the normal layout is not rendered.
 export default function GlobalError({
   error,
-  unstable_retry,
+  reset,
 }: {
   error: Error & { digest?: string };
-  unstable_retry: () => void;
+  reset: () => void;
 }) {
   useEffect(() => {
     Sentry.captureException(error);
@@ -42,7 +40,7 @@ export default function GlobalError({
               </p>
             )}
             <button
-              onClick={unstable_retry}
+              onClick={reset}
               style={{
                 padding: '0.5rem 1rem',
                 borderRadius: '0.375rem',

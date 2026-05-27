@@ -92,7 +92,7 @@ export async function POST(_request: Request, { params }: Context) {
         .eq("id", review.id);
     }
 
-    createAuditLog("SEND_EMAIL", "rams_submission", ramsId, {
+    await createAuditLog("SEND_EMAIL", "rams_submission", ramsId, {
       userId: user.id,
       details: {
         to: rams.subcontractor_email,
