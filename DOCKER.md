@@ -123,6 +123,10 @@ This means:
 - The workflow no longer uses the `--image` flag (the Railway CLI in CI does not reliably support it). Deployment is driven by your service configuration in the Railway dashboard.
 - Recommended setup: Configure the service as **"Deploy from Image"** pointing at your Docker Hub repository.
 - The workflow now outputs and logs the exact image digest for better observability.
+- **Reliability improvements**:
+  - Pinned Railway CLI version (avoids surprises from auto-updates)
+  - Direct binary download from GitHub releases (more reliable than the install script in CI)
+  - Automatic retry with exponential backoff (up to 3 attempts)
 - For even cleaner deploys in the future, consider Railway's official GitHub App integration or their Deploy Triggers / GraphQL API.
 
 ### Using Railway's Official GitHub Integration (Alternative)

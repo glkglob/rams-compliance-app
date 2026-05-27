@@ -89,11 +89,26 @@ jobs:
 
       - name: Install Railway CLI
         shell: bash
+        env:
+          RAILWAY_CLI_VERSION: v3.17.0
         run: |
-          curl -sSL https://railway.app/install.sh | sh
+          set -euo pipefail
+          echo "Installing Railway CLI version ${RAILWAY_CLI_VERSION}..."
+
+          # Download specific version for better reliability (avoids flakiness of install script)
+          curl -sSL -o /tmp/railway.tar.gz \
+            "https://github.com/railwayapp/cli/releases/download/${RAILWAY_CLI_VERSION}/railway_${RAILWAY_CLI_VERSION#v}_linux_amd64.tar.gz"
+
+          mkdir -p "$HOME/.railway/bin"
+          tar -xzf /tmp/railway.tar.gz -C "$HOME/.railway/bin" --strip-components=1
+          chmod +x "$HOME/.railway/bin/railway"
+
           echo "$HOME/.railway/bin" >> $GITHUB_PATH
+          echo "Railway CLI installed:"
+          "$HOME/.railway/bin/railway" --version
 
       - name: Deploy to Railway
+        shell: bash
         run: |
           set -euo pipefail
 
@@ -109,12 +124,28 @@ jobs:
             echo "Deploying image with digest: $IMAGE_DIGEST"
           fi
 
-          # Run the deploy. Fail the job if railway deploy fails.
-          if ! railway deploy --detach; then
-            echo "::error::Railway deploy command failed"
-            exit 1
-          fi
+          # Retry logic for transient failures (network, Railway API hiccups, etc.)
+          MAX_RETRIES=3
+          RETRY_DELAY=10
 
-          echo "Railway deploy command completed successfully."
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $attempt of $MAX_RETRIES: Running railway deploy..."
+
+            if railway deploy --detach; then
+              echo "✅ Railway deploy succeeded on attempt $attempt"
+              exit 0
+            fi
+
+            echo "❌ Railway deploy failed on attempt $attempt"
+
+            if [ $attempt -lt $MAX_RETRIES ]; then
+              echo "Waiting ${RETRY_DELAY}s before retry..."
+              sleep $RETRY_DELAY
+              RETRY_DELAY=$((RETRY_DELAY * 2))  # exponential backoff
+            fi
+          done
+
+          echo "::error::Railway deploy failed after $MAX_RETRIES attempts"
+          exit 1
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
