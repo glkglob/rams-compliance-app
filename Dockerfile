@@ -23,7 +23,9 @@ WORKDIR /app
 
 # Copy only manifests for better layer caching
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev && npm cache clean --force
+# Full install (including devDependencies) is required for the build stage.
+# Tailwind v4 PostCSS plugin (@tailwindcss/postcss), TypeScript, etc. live in devDependencies.
+RUN npm ci && npm cache clean --force
 
 # -----------------------------------------------------------------------------
 # 2. Builder layer (full source + build)
