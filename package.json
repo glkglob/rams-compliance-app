@@ -17,7 +17,15 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "type-check": "tsc --noEmit",
-    "validate": "npm run lint && npm run type-check && npm run test"
+    "validate": "npm run lint && npm run type-check && npm run test",
+
+    "// Docker (optimized for Railway + Docker Hub)": "",
+    "docker:build": "docker build --platform linux/amd64 -t rams-compliance-app .",
+    "docker:build:hub": "docker build --platform linux/amd64 -t k1dev2026/rams-compliance-app:latest .",
+    "docker:push": "docker push k1dev2026/rams-compliance-app:latest",
+    "docker:build:push": "npm run docker:build:hub && npm run docker:push",
+    "docker:run": "docker run -p 3000:3000 --env-file .env.local rams-compliance-app",
+    "docker:run:prod": "docker run -p 3000:3000 k1dev2026/rams-compliance-app:latest"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
