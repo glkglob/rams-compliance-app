@@ -40,7 +40,9 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   OPENAI_API_KEY: z.string().min(1),
   RESEND_API_KEY: z.string().min(1),
-  RESEND_FROM_EMAIL: z.string().min(1),
+  // Optional — sendEmail() degrades gracefully when this is unset, so we don't
+  // want a missing value to crash the process at startup on Railway.
+  RESEND_FROM_EMAIL: z.string().min(1).optional(),
   DATABASE_URL: z.string().min(1),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   // Optional — rate limiting is disabled when absent (dev convenience).

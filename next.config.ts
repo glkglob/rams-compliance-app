@@ -2,18 +2,22 @@ import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 
 const nextConfig: NextConfig = {
-  // ... existing config ...
   experimental: {
     // Prevents the /_global-error prerender crash with @sentry/nextjs + Next.js 16
     prerenderEarlyExit: false,
   },
-};
 
+  // NOTE: Per-request security headers (including a nonce-based CSP) are set in
+  // src/middleware.ts on every matched response. The headers below are a
+  // defence-in-depth fallback that applies to paths the middleware does NOT
+  // match (Next static assets, images, favicon). The middleware's nonce-based
+  // CSP supersedes the static CSP defined here for all app routes.
   async headers() {
     const sentryIngest = 'https://*.ingest.de.sentry.io https://*.ingest.sentry.io';
     const supabaseHosts = 'https://*.supabase.co wss://*.supabase.co';
 
-    // unsafe-eval is required by Next.js client runtime in all environments
+    // 'unsafe-eval' is required by the Next.js client runtime; this fallback CSP
+    // is only applied to static asset paths where middleware does not run.
     const scriptSrc = "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
 
     const csp = [
