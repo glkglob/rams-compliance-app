@@ -59,7 +59,10 @@ export default withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
 
-  // Disable automatic wrapping of error boundaries
+  // Disable automatic wrapping of app directory error boundaries.
+  // The global-error page renders outside the React tree during prerendering,
+  // so Sentry's HOC crashes with "Cannot read properties of null (reading 'useContext')".
+  autoInstrumentAppDirectory: false,
   automaticVercelMonitors: false,
 
   // Reduce Sentry build noise
