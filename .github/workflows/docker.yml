@@ -18,7 +18,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
@@ -59,17 +59,20 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install Railway CLI
-        run: curl -sSL https://railway.app/install.sh | sh
+        shell: bash
+        run: |
+          curl -sSL https://railway.app/install.sh | bash
+          echo "$HOME/.railway/bin" >> $GITHUB_PATH
 
       - name: Deploy to Railway
         run: |
           railway deploy \
             --image ${{ env.IMAGE_NAME }}:latest \
-            --service ${{ secrets.RAILWAY_SERVICE_NAME || '' }} \
+            --service "${{ secrets.RAILWAY_SERVICE_NAME || '' }}" \
             --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
