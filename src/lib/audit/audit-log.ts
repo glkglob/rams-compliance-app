@@ -1,4 +1,5 @@
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { logger } from "@/lib/logging";
 
 export async function createAuditLog(
   action: string,
@@ -20,7 +21,7 @@ export async function createAuditLog(
   });
 
   if (error) {
-    console.error("Failed to create audit log:", error);
+    logger.error("Failed to create audit log", { error: String(error), action, entityType, entityId });
   }
 }
 
@@ -48,7 +49,7 @@ export async function getAuditLogs(
   const { data, error } = await query;
 
   if (error) {
-    console.error("Failed to fetch audit logs:", error);
+    logger.error("Failed to fetch audit logs", { error: String(error) });
     return [];
   }
 

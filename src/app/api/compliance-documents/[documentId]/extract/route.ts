@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { logger } from "@/lib/logging";
 import { extractTextFromFile } from "@/lib/documents/extract-text";
 import { chunkText } from "@/lib/documents/chunk-text";
 import { getMimeTypeForFileType } from "@/lib/documents/file-validation";
@@ -81,7 +82,7 @@ export async function POST(_request: Request, { params }: ExtractRouteContext) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error re-extracting text:", error);
+    logger.error("Error re-extracting text", { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

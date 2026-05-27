@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { logger } from "@/lib/logging";
 import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 import { extractTextFromFile } from "@/lib/documents/extract-text";
-import { validateFile } from "@/lib/documents/file-validation";
+import { validateFile, sanitiseFilename } from "@/lib/documents/file-validation";
 
 export const maxDuration = 300;
 
@@ -105,7 +106,7 @@ export async function POST(request: Request, { params }: Context) {
         })
         .eq("id", submission.id);
 
-      createAuditLog("UPLOAD_RAMS", "rams_submission", submission.id, {
+      await createAuditLog("UPLOAD_RAMS", "rams_submission", submission.id, {
         userId: user.id,
         details: {
           fileName: file.name,
@@ -171,7 +172,7 @@ export async function GET(_request: Request, { params }: Context) {
 
     return NextResponse.json(submissions ?? [], { status: 200 });
   } catch (error) {
-    console.error("Error fetching RAMS:", error);
+    logger.error("Error fetching RAMS", { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

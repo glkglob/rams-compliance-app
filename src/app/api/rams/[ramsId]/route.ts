@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { logger } from "@/lib/logging";
 
 type Context = { params: Promise<{ ramsId: string }> };
 
@@ -54,7 +55,7 @@ export async function GET(_request: Request, { params }: Context) {
 
     return NextResponse.json(rams, { status: 200 });
   } catch (error) {
-    console.error("Error fetching RAMS:", error);
+    logger.error("Error fetching RAMS", { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

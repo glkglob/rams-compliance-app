@@ -101,7 +101,7 @@ export async function POST(_request: Request, { params }: Context) {
       .update({ email_generated: true })
       .eq("id", review.id);
 
-    createAuditLog("GENERATE_EMAIL", "rams_submission", ramsId, {
+    await createAuditLog("GENERATE_EMAIL", "rams_submission", ramsId, {
       userId: user.id,
       details: { reviewStatus: review.review_status, subject: email.subject },
     });

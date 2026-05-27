@@ -2,10 +2,9 @@ import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 
 const nextConfig: NextConfig = {
-  // Prevent webpack from bundling these server-only packages.
-  // They use dynamic worker loading, pure-ESM builds, or filesystem access
-  // that webpack cannot statically trace — bundling them breaks next build.
-  serverExternalPackages: ['tesseract.js', 'pdf-parse', 'mammoth', 'xlsx', 'jszip'],
+  // Prevent webpack from bundling these server-only packages
+  serverExternalPackages: ['tesseract.js', 'pdf-parse', 'mammoth', 'exceljs', 'jszip'],
+
   images: {
     remotePatterns: [
       {
@@ -14,18 +13,40 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+
   async headers() {
+    const sentryIngest = 'https://*.ingest.de.sentry.io';
+    const supabaseHosts = 'https://*.supabase.co wss://*.supabase.co';
+
+    // Add 'unsafe-eval' only in development (required by React)
+    const scriptSrc =
+      process.env.NODE_ENV === 'development'
+        ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+        : "script-src 'self' 'unsafe-inline'";
+
+    const csp = [
+      "default-src 'self'",
+      scriptSrc,
+      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+      'font-src https://fonts.gstatic.com',
+      `img-src 'self' data: blob: ${supabaseHosts}`,
+      `connect-src 'self' ${supabaseHosts} ${sentryIngest}`,
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; ');
+
     return [
       {
         source: '/:path*',
         headers: [
+          { key: 'Content-Security-Policy', value: csp },
           { key: 'X-DNS-Prefetch-Control', value: 'on' },
           {
             key: 'Strict-Transport-Security',
             value: 'max-age=63072000; includeSubDomains; preload',
           },
-          { key: 'X-XSS-Protection', value: '1; mode=block' },
-          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
         ],
@@ -35,19 +56,21 @@ const nextConfig: NextConfig = {
 };
 
 export default withSentryConfig(nextConfig, {
-  // Sentry organisation and project slugs — set in Railway / CI.
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
-  // Only print Sentry build output in CI; stay quiet in local dev.
+
+  // Disable automatic wrapping of app directory error boundaries.
+  // The global-error page renders outside the React tree during prerendering,
+  // so Sentry's HOC crashes with "Cannot read properties of null (reading 'useContext')".
+  autoInstrumentAppDirectory: false,
+  automaticVercelMonitors: false,
+
+  // Reduce Sentry build noise
   silent: !process.env.CI,
-  // Upload a larger set of source maps so stack traces are more readable.
+
+  // Source map settings
   widenClientFileUpload: true,
-  // Delete .map files from the deploy artifact after uploading to Sentry.
   sourcemaps: {
     filesToDeleteAfterUpload: ['.next/static/**/*.map'],
   },
-  // Tree-shake the Sentry logger to reduce bundle size.
-  disableLogger: true,
-  // No Vercel Cron monitor wiring needed on Railway.
-  automaticVercelMonitors: false,
 });

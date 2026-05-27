@@ -3,14 +3,15 @@ import { z } from "zod";
 
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { hasPermission } from "@/lib/auth/roles";
-import { createServerSupabase } from "@/lib/db/supabase-server";
+import { logger } from "@/lib/logging";
+import { createServerSupabaseWithTimeout } from "@/lib/db/supabase-with-timeout";
 import { handleAPIError, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
 import { toProjectInsert } from "@/lib/projects/project-mappers";
 import { createProjectSchema } from "@/lib/validations/project.schema";
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createServerSupabase();
+    const supabase = await createServerSupabaseWithTimeout(6000);
     const {
       data: { user },
       error: userError,
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
     }
 
     // Centralized audit helper (never blocks the response)
-    createAuditLog("CREATE_PROJECT", "project", project.id, {
+    await createAuditLog("CREATE_PROJECT", "project", project.id, {
       userId: user.id,
       details: validatedData,
     });
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
-    const supabase = await createServerSupabase();
+    const supabase = await createServerSupabaseWithTimeout(6000);
     const {
       data: { user },
       error: userError,
@@ -134,7 +135,7 @@ export async function GET() {
 
     return NextResponse.json(projects ?? [], { status: 200 });
   } catch (error) {
-    console.error("Error fetching projects:", error);
+    logger.error("Error fetching projects", { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

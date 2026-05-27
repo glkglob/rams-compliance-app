@@ -1,14 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { validateEnv } from "@/lib/config/env";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { SentryUserContext } from "@/components/sentry-user-context";
 
 import "./globals.css";
-
-if (process.env.NODE_ENV !== "test" && process.env.NEXT_PHASE !== "phase-production-build") {
-  validateEnv();
-}
 
 const inter = Inter({
   subsets: ["latin"],
@@ -41,6 +36,7 @@ export default async function RootLayout({
   return (
     <html lang="en" className="h-full">
       <body className={`${inter.className} min-h-full bg-background text-foreground`}>
+        <SentryUserContext userId={userId} userEmail={userEmail} />
         <div className="flex min-h-screen flex-col">
           <main className="flex-1 bg-background">{children}</main>
 
