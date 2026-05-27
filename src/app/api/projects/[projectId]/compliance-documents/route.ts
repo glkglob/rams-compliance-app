@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { canManageProject } from "@/lib/auth/permissions";
 import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 import { logger } from "@/lib/logging";
 import { chunkText } from "@/lib/documents/chunk-text";
@@ -27,14 +28,8 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
       throw new UnauthorizedError();
     }
 
-    const { data: membership } = await supabase
-      .from("project_members")
-      .select("role")
-      .eq("project_id", projectId)
-      .eq("user_id", user.id)
-      .single();
-
-    if (!membership) {
+    const canManage = await canManageProject(projectId);
+    if (!canManage) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -176,14 +171,8 @@ export async function GET(_request: Request, { params }: ProjectDocsContext) {
       throw new UnauthorizedError();
     }
 
-    const { data: membership } = await supabase
-      .from("project_members")
-      .select("role")
-      .eq("project_id", projectId)
-      .eq("user_id", user.id)
-      .single();
-
-    if (!membership) {
+    const canManage = await canManageProject(projectId);
+    if (!canManage) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

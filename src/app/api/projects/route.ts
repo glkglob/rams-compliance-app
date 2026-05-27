@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { createAuditLog } from "@/lib/audit/audit-log";
-import { hasPermission } from "@/lib/auth/roles";
+import { hasGlobalPermission } from "@/lib/auth/permissions";
 import { logger } from "@/lib/logging";
 import { createServerSupabaseWithTimeout } from "@/lib/db/supabase-with-timeout";
 import { handleAPIError, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
@@ -31,7 +31,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Profile not found" }, { status: 403 });
     }
 
-    if (!hasPermission(profile.role, "create:projects")) {
+    const canCreate = await hasGlobalPermission("create:projects");
+    if (!canCreate) {
       throw new ForbiddenError();
     }
 

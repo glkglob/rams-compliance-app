@@ -122,4 +122,11 @@ describe('Compliance Score Calculation', () => {
     expect(result.decision).toBe('manual_review');
     expect(result.reason).toContain('No compliance requirements');
   });
+
+  it('should require manual review for low AI confidence', () => {
+    const checks = [createCheck({ status: 'compliant' })];
+    const result = calculateComplianceScore(checks, 80, 0.9, 0.6);
+    expect(result.decision).toBe('manual_review');
+    expect(result.reason).toContain('AI confidence score is below 75%');
+  });
 });

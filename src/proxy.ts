@@ -96,11 +96,18 @@ export async function proxy(request: NextRequest) {
   // --- Protected routes ---
   const protectedPaths = ['/dashboard', '/projects', '/settings'];
 
+  // Explicitly public paths (auth pages, legal, etc.)
+  const publicPaths = ['/login', '/reset-password', '/privacy', '/terms'];
+
   const isProtectedPath = protectedPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path),
   );
 
-  if (isProtectedPath && !user) {
+  const isPublicPath = publicPaths.some((path) =>
+    request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(path + '/')
+  );
+
+  if (isProtectedPath && !user && !isPublicPath) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('redirect', request.nextUrl.pathname + request.nextUrl.search);

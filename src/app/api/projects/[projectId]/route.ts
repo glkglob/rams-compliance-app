@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { createAuditLog } from "@/lib/audit/audit-log";
-import { hasPermission } from "@/lib/auth/roles";
+import { canManageProject } from "@/lib/auth/permissions";
 import { logger } from "@/lib/logging";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
@@ -61,7 +61,14 @@ export async function GET(_request: Request, { params }: ProjectRouteContext) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    return NextResponse.json(project, { status: 200 });
+    // Return the project along with the current user's role on it (very useful for UI permissioning)
+    return NextResponse.json(
+      {
+        ...project,
+        currentUserRole: membership?.role ?? (profile.role === "admin" ? "admin" : null),
+      },
+      { status: 200 }
+    );
   } catch (error) {
     logger.error("Error fetching project", { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -87,11 +94,8 @@ export async function PATCH(request: Request, { params }: ProjectRouteContext) {
       .eq("id", user.id)
       .single();
 
-    if (profileError || !profile) {
-      return NextResponse.json({ error: "Profile not found" }, { status: 403 });
-    }
-
-    if (!hasPermission(profile.role, "manage:projects")) {
+    const canManage = await canManageProject(projectId);
+    if (!canManage) {
       throw new ForbiddenError();
     }
 
@@ -121,10 +125,21 @@ export async function PATCH(request: Request, { params }: ProjectRouteContext) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
+    // Always log general project updates
     await createAuditLog("UPDATE_PROJECT", "project", project.id, {
       userId: user.id,
       details: validatedData,
     });
+
+    // Specifically highlight threshold changes for governance/audit purposes
+    if (validatedData.complianceThreshold !== undefined) {
+      await createAuditLog("UPDATE_PROJECT_THRESHOLD", "project", project.id, {
+        userId: user.id,
+        details: {
+          newThreshold: validatedData.complianceThreshold,
+        },
+      });
+    }
 
     return NextResponse.json(project, { status: 200 });
   } catch (error) {
