@@ -6,7 +6,7 @@ import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 import { logger } from "@/lib/logging";
 import { chunkText } from "@/lib/documents/chunk-text";
 import { extractTextFromFile } from "@/lib/documents/extract-text";
-import { validateFile, sanitiseFilename } from "@/lib/documents/file-validation";
+import { validateFile } from "@/lib/documents/file-validation";
 
 export const maxDuration = 300;
 
@@ -55,7 +55,10 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
     }
 
     const fileBuffer = Buffer.from(await file.arrayBuffer());
-    const safeName = sanitiseFilename(file.name);
+    const safeName = file.name
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .replace(/\.{2,}/g, '_')
+      .slice(0, 200);
     const storagePath = `${projectId}/compliance-docs/${Date.now()}-${safeName}`;
 
     const { error: uploadError } = await supabase.storage
