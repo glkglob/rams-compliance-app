@@ -1,6 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import crypto from 'crypto';
 
 import { getSupabaseEnv } from '@/lib/config/env';
 
@@ -45,8 +44,9 @@ export async function middleware(request: NextRequest) {
     `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
 
   // --- CSP Nonce ---
-  // Generated fresh per-request so it cannot be predicted or replayed.
-  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+  // Generated fresh per-request using Web Crypto API (Edge compatible).
+  // This replaces the previous Node.js 'crypto' + Buffer usage which breaks Edge runtime.
+  const nonce = btoa(globalThis.crypto.randomUUID());
   const csp = buildCsp(nonce);
 
   // Inject headers into downstream request so Server Components can read them.

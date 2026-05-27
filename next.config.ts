@@ -2,6 +2,10 @@ import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 
 const nextConfig: NextConfig = {
+  // Critical for Railway/Nixpacks: Prevents webpack from trying to bundle native or complex Node modules.
+  // Without this, tesseract.js, pdf-parse, mammoth, etc. often cause runtime errors or build warnings.
+  serverExternalPackages: ['tesseract.js', 'pdf-parse', 'mammoth', 'xlsx', 'jszip'],
+
   experimental: {
     // Prevents the /_global-error prerender crash with @sentry/nextjs + Next.js 16
     prerenderEarlyExit: false,
@@ -51,8 +55,11 @@ const nextConfig: NextConfig = {
 export default withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
-  autoInstrumentAppDirectory: false,
-  automaticVercelMonitors: false,
+  // Updated to new non-deprecated config paths (avoids build warnings)
+  webpack: {
+    autoInstrumentAppDirectory: false,
+    automaticVercelMonitors: false,
+  },
   silent: !process.env.CI,
   widenClientFileUpload: true,
   sourcemaps: {
