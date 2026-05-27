@@ -1,37 +1,41 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import { createServerSupabase } from "@/lib/db/supabase-server";
-import { SentryUserContext } from "@/components/sentry-user-context";
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import { SentryUserContext } from '@/components/sentry-user-context';
 
-import "./globals.css";
+import './globals.css';
 
 const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
+  subsets: ['latin'],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: "RAMS Compliance Review",
-  description: "AI-powered RAMS document compliance review system",
+  title: 'RAMS Compliance Review',
+  description: 'AI-powered RAMS document compliance review system',
 };
+
+// Lazy-import so a module-level crash in supabase-server never
+// takes down the layout — failures are caught and silently ignored.
+async function getSessionUser() {
+  try {
+    const { createServerSupabase } = await import('@/lib/db/supabase-server');
+    const supabase = await createServerSupabase();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    return { userId: user?.id, userEmail: user?.email };
+  } catch {
+    // Non-fatal — layout still renders, Sentry just won't have user context.
+    return { userId: undefined, userEmail: undefined };
+  }
+}
 
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Fetch session for Sentry user context. Failures are non-fatal —
-  // the layout still renders; Sentry just won't have user info for that render.
-  let userId: string | undefined;
-  let userEmail: string | undefined;
-  try {
-    const supabase = await createServerSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
-    userId = user?.id;
-    userEmail = user?.email;
-  } catch {
-    // Silently ignore — this runs on every page load including unauthenticated ones.
-  }
+  const { userId, userEmail } = await getSessionUser();
 
   return (
     <html lang="en" className="h-full">
@@ -43,7 +47,8 @@ export default async function RootLayout({
           <footer className="border-t bg-muted/30 py-6 text-sm text-muted-foreground">
             <div className="container mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 sm:flex-row">
               <div>
-                © {new Date().getFullYear()} RAMS Compliance Review. AI-assisted decision support tool.
+                © {new Date().getFullYear()} RAMS Compliance Review. AI-assisted decision support
+                tool.
               </div>
               <div className="flex gap-6">
                 <a href="/privacy" className="hover:text-foreground transition-colors">
@@ -56,9 +61,7 @@ export default async function RootLayout({
                   Dashboard
                 </a>
               </div>
-              <div className="text-xs">
-                For UK construction health &amp; safety compliance
-              </div>
+              <div className="text-xs">For UK construction health &amp; safety compliance</div>
             </div>
           </footer>
         </div>
