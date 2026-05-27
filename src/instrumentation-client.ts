@@ -14,6 +14,8 @@ Sentry.init({
   replaysOnErrorSampleRate: 1.0,
   integrations: [Sentry.replayIntegration()],
   debug: false,
+  // Only enable Sentry in production
+  enabled: process.env.NODE_ENV === 'production',
 });
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

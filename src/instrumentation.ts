@@ -16,6 +16,8 @@ export async function register() {
       tracesSampleRate: process.env.NODE_ENV === 'development' ? 1.0 : 0.1,
       enableLogs: true,
       debug: false,
+      // Only enable Sentry in production
+      enabled: process.env.NODE_ENV === 'production',
     });
   }
 }

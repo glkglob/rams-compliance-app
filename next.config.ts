@@ -70,7 +70,4 @@ export default withSentryConfig(nextConfig, {
   sourcemaps: {
     filesToDeleteAfterUpload: ['.next/static/**/*.map'],
   },
-
-  // Only enable Sentry in production
-  enabled: process.env.NODE_ENV === 'production',
 });
