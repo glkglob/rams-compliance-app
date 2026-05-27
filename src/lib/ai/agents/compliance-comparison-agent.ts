@@ -74,10 +74,54 @@ async function runSingleComparison(
   );
 
   const parsed = JSON.parse(response);
-  const rawChecks: Record<string, unknown>[] = parsed.checks ?? [];
+  // GPT-4o returns varying top-level keys: checks, complianceChecks, compliance_checks, results, etc.
+  const rawArray: Record<string, unknown>[] =
+    parsed.checks ??
+    parsed.complianceChecks ??
+    parsed.compliance_checks ??
+    parsed.results ??
+    (Array.isArray(parsed) ? parsed : []);
 
-  const checks = requirements.map(req => {
-    const check = rawChecks.find(c => c.requirementId === req.requirementCode);
+  // Normalise AI-returned keys to our canonical field names
+  const normalisedChecks = rawArray.map((c) => ({
+    requirementId: (c.requirementId ?? c.requirementCode ?? c.requirement_id ?? c.id ?? '') as string,
+    status: (c.status ?? c.complianceStatus ?? c.compliance_status ?? 'unclear') as string,
+    ramsEvidence: (c.ramsEvidence ?? c.rams_evidence ?? c.evidence ?? 'No evidence found') as string,
+    explanation: (c.explanation ?? c.reasoning ?? c.reason ?? 'Unable to verify compliance') as string,
+    score: typeof c.score === 'number'
+      ? c.score
+      : ((c.status ?? c.complianceStatus) === 'compliant' ? 1
+        : (c.status ?? c.complianceStatus) === 'partially_compliant' ? 0.5
+        : 0),
+  }));
+
+  // Build a set of already-consumed indices to prevent double-matching
+  const consumed = new Set<number>();
+
+  const checks = requirements.map((req, reqIdx) => {
+    // 1. Exact match on requirementId / requirementCode
+    let matchIdx = normalisedChecks.findIndex(
+      (c, i) => !consumed.has(i) && c.requirementId === req.requirementCode
+    );
+
+    // 2. Case-insensitive / whitespace-normalised match
+    if (matchIdx === -1) {
+      const normCode = req.requirementCode.toLowerCase().replace(/[\s_-]/g, '');
+      matchIdx = normalisedChecks.findIndex(
+        (c, i) =>
+          !consumed.has(i) &&
+          c.requirementId.toLowerCase().replace(/[\s_-]/g, '') === normCode
+      );
+    }
+
+    // 3. Positional fallback — if AI returned checks in the same order as requirements
+    if (matchIdx === -1 && reqIdx < normalisedChecks.length && !consumed.has(reqIdx)) {
+      matchIdx = reqIdx;
+    }
+
+    const check = matchIdx >= 0 ? normalisedChecks[matchIdx] : undefined;
+    if (matchIdx >= 0) consumed.add(matchIdx);
+
     return {
       requirementId: req.requirementCode,
       status: (check?.status as string) ?? 'unclear',

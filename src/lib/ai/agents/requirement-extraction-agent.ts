@@ -28,15 +28,21 @@ export async function extractRequirements(
       const parsed = JSON.parse(response);
       const rawItems = Array.isArray(parsed.requirements) ? parsed.requirements : Array.isArray(parsed) ? parsed : [];
 
-      const docRequirements = rawItems.map((req: Record<string, unknown>) => ({
-        requirementCode: (req.requirementCode as string) || `REQ-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        requirementText: req.requirementText as string,
-        category: (req.category as string) || doc.category,
-        severity: (req.severity as string) || 'major',
-        sourceDocumentId: doc.documentId,
-        sourceDocumentName: doc.fileName,
-        sourceExcerpt: (req.sourceExcerpt as string) || (req.requirementText as string),
-      }));
+      const docRequirements = rawItems
+        .map((req: Record<string, unknown>) => {
+          // Normalise: GPT-4o returns varying key names (requirementText, requirement_text, text, excerpt, etc.)
+          const text = (req.requirementText ?? req.requirement_text ?? req.text ?? req.description ?? req.excerpt ?? '') as string;
+          return {
+            requirementCode: (req.requirementCode ?? req.requirement_code ?? req.code ?? req.id ?? `REQ-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`) as string,
+            requirementText: text,
+            category: (req.category as string) || doc.category,
+            severity: (req.severity as string) || 'major',
+            sourceDocumentId: doc.documentId,
+            sourceDocumentName: doc.fileName,
+            sourceExcerpt: (req.sourceExcerpt ?? req.source_excerpt ?? req.excerpt ?? text) as string,
+          };
+        })
+        .filter((req: { requirementText: string }) => req.requirementText.trim().length > 0);
 
       requirements.push(...docRequirements);
     } catch (error) {

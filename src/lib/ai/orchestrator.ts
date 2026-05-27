@@ -63,6 +63,8 @@ export async function orchestrateRAMSReview(
 
     // 3. Extract or retrieve requirements
     let requirements: ComplianceRequirement[] = [];
+    // Maps requirement_code → DB UUID for foreign-key references in review_checks
+    const requirementDbIds = new Map<string, string>();
 
     const { data: existingRequirements } = await supabase
       .from('compliance_requirements')
@@ -70,15 +72,18 @@ export async function orchestrateRAMSReview(
       .eq('project_id', project.id);
 
     if (existingRequirements && existingRequirements.length > 0) {
-      requirements = existingRequirements.map((r: any) => ({
-        requirementCode: r.requirement_code,
-        requirementText: r.requirement_text,
-        category: r.category,
-        severity: r.severity,
-        sourceDocumentId: r.source_document_id,
-        sourceDocumentName: '',
-        sourceExcerpt: r.source_excerpt,
-      }));
+      requirements = existingRequirements.map((r: any) => {
+        requirementDbIds.set(r.requirement_code, r.id);
+        return {
+          requirementCode: r.requirement_code,
+          requirementText: r.requirement_text,
+          category: r.category,
+          severity: r.severity,
+          sourceDocumentId: r.source_document_id,
+          sourceDocumentName: '',
+          sourceExcerpt: r.source_excerpt,
+        };
+      });
     } else {
       const extractionResult = await extractRequirements({
         projectId: project.id,
@@ -90,10 +95,13 @@ export async function orchestrateRAMSReview(
         })),
       });
 
-      requirements = extractionResult.requirements;
+      // Filter out any requirements with missing text (LLM can return nulls)
+      requirements = extractionResult.requirements.filter(
+        (r) => r.requirementText && r.requirementText.trim().length > 0
+      );
 
       if (requirements.length > 0) {
-        const { error: reqInsertError } = await supabase
+        const { data: insertedReqs, error: reqInsertError } = await supabase
           .from('compliance_requirements')
           .insert(
             requirements.map((req: any) => ({
@@ -105,9 +113,19 @@ export async function orchestrateRAMSReview(
               severity: req.severity,
               source_excerpt: req.sourceExcerpt,
             }))
-          );
+          )
+          .select('id, requirement_code');
+
         if (reqInsertError) {
           logger.error('Failed to batch-insert requirements', { error: String(reqInsertError) });
+        }
+
+        // Build a lookup from requirement_code → DB UUID so review_checks
+        // can reference the correct foreign key.
+        if (insertedReqs) {
+          for (const row of insertedReqs as { id: string; requirement_code: string }[]) {
+            requirementDbIds.set(row.requirement_code, row.id);
+          }
         }
       }
     }
@@ -167,24 +185,38 @@ export async function orchestrateRAMSReview(
 
     // 9. Save review checks
     if (comparison.checks.length > 0) {
-      const { error: checksInsertError } = await supabase
-        .from('review_checks')
-        .insert(
-          comparison.checks.map((check: any) => {
-            const matchedReq = requirements.find(r => r.requirementCode === check.requirementId);
-            return {
-              rams_review_id: review.id,
-              requirement_id: matchedReq?.requirementCode,
-              status: check.status,
-              severity: check.severity,
-              score: check.score,
-              rams_evidence: check.ramsEvidence,
-              explanation: check.explanation,
-            };
-          })
-        );
-      if (checksInsertError) {
-        logger.error('Failed to batch-insert review checks', { error: String(checksInsertError) });
+      const checkRows = comparison.checks
+        .map((check: any) => {
+          // Look up the DB UUID for this requirement code
+          const dbId = requirementDbIds.get(check.requirementId) ?? null;
+          return {
+            rams_review_id: review.id,
+            requirement_id: dbId,
+            status: check.status,
+            severity: check.severity,
+            score: check.score,
+            rams_evidence: check.ramsEvidence,
+            explanation: check.explanation,
+          };
+        })
+        // Only insert checks that resolved to a valid DB requirement
+        .filter((row: any) => row.requirement_id !== null);
+
+      if (checkRows.length > 0) {
+        const { error: checksInsertError } = await supabase
+          .from('review_checks')
+          .insert(checkRows);
+        if (checksInsertError) {
+          logger.error('Failed to batch-insert review checks', { error: String(checksInsertError) });
+        }
+      }
+
+      if (checkRows.length < comparison.checks.length) {
+        logger.warn('Some review checks skipped — requirement_id not found in DB', {
+          total: comparison.checks.length,
+          inserted: checkRows.length,
+          skipped: comparison.checks.length - checkRows.length,
+        });
       }
     }
 
