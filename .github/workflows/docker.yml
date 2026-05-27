@@ -17,6 +17,13 @@ jobs:
     permissions:
       contents: read
       packages: write
+<<<<<<< HEAD
+=======
+
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+
+>>>>>>> 56b0fc9 (ci: improve Railway deploy job)
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -42,7 +49,12 @@ jobs:
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
+<<<<<<< HEAD
       - name: Build and push Docker image
+=======
+      - name: Build and push Docker image (using native action for rich tagging)
+        id: build
+>>>>>>> 56b0fc9 (ci: improve Railway deploy job)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -54,8 +66,21 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64
 
+<<<<<<< HEAD
+=======
+      - name: Image digest
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "Pushed image digest: ${{ steps.build.outputs.digest }}"
+          echo "image_digest=${{ steps.build.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
+
+  # ---------------------------------------------------------------------------
+  # Deploy to Railway (only on main + manual, not PRs)
+  # Deploys using the Railway service configuration (expected to be set to
+  # pull the latest image from Docker Hub). Requires RAILWAY_TOKEN.
+  # ---------------------------------------------------------------------------
   deploy-railway:
-    needs: build-and-push
+    needs: docker
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
     steps:
@@ -65,14 +90,31 @@ jobs:
       - name: Install Railway CLI
         shell: bash
         run: |
-          curl -sSL https://railway.app/install.sh | bash
+          curl -sSL https://railway.app/install.sh | sh
           echo "$HOME/.railway/bin" >> $GITHUB_PATH
 
       - name: Deploy to Railway
         run: |
-          railway deploy \
-            --image ${{ env.IMAGE_NAME }}:latest \
-            --service "${{ secrets.RAILWAY_SERVICE_NAME || '' }}" \
-            --detach
+          set -euo pipefail
+
+          IMAGE_DIGEST="${{ needs.docker.outputs.digest }}"
+          IMAGE_REF="${{ env.IMAGE_NAME }}:latest"
+
+          echo "=== Railway Deployment ==="
+          echo "Image: $IMAGE_REF"
+          echo "Digest: $IMAGE_DIGEST"
+          echo "============================="
+
+          if [ -n "$IMAGE_DIGEST" ]; then
+            echo "Deploying image with digest: $IMAGE_DIGEST"
+          fi
+
+          # Run the deploy. Fail the job if railway deploy fails.
+          if ! railway deploy --detach; then
+            echo "::error::Railway deploy command failed"
+            exit 1
+          fi
+
+          echo "Railway deploy command completed successfully."
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}

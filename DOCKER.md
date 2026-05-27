@@ -48,12 +48,11 @@ The workflow at `.github/workflows/docker.yml` will automatically:
 
 You can also trigger it manually from the **Actions** tab (this will use `npm run docker:build:push` for full consistency with local development).
 
-## Deploying on Railway (Two Options)
+## Deploying on Railway
 
-### Option A: Build on Railway (Current)
-Keep using the Dockerfile directly (what you're doing now). Simple but consumes build minutes.
+We recommend **image-based deploys** from Docker Hub for speed and consistency.
 
-### Option B: Deploy Pre-built Image from Docker Hub (Recommended & Faster)
+### Option A: Deploy Pre-built Image from Docker Hub (Recommended)
 
 Once the GitHub Action has pushed an image to Docker Hub, you can deploy it directly on Railway without building every time.
 
@@ -107,14 +106,32 @@ Example full image references:
 
 ## Automatic Railway Deploys via GitHub Actions
 
-Once you have switched your Railway service to "Deploy from Image", you can make deploys fully automatic:
+Once your Railway service is configured to "Deploy from Image" (pointing at your Docker Hub repository), deploys can be fully automatic:
 
 1. Create a Railway API token at https://railway.app/account/tokens
 2. Add it as a GitHub secret named `RAILWAY_TOKEN`
-3. The `docker.yml` workflow now includes a `deploy-railway` job that automatically runs `railway deploy --image ...` after every successful push to `main`.
+3. The `docker.yml` workflow will:
+   - Build and push the Docker image to Docker Hub on every push to `main`
+   - Run `railway deploy --detach` using the linked Railway project/service configuration
 
 This means:
-- Push to `main` → Build + push image to Docker Hub → Automatically deploy to Railway
+- Push to `main` → Build + push image to Docker Hub → Railway automatically pulls the new image
+
+### Important Notes on Railway Deploys
+
+- The workflow no longer passes `--image` directly (the Railway CLI in CI does not reliably support it for this use case).
+- Deployment is driven by the service configuration you set in the Railway dashboard (recommended: "Deploy from Image" + your Docker Hub repo).
+- For more precise control (e.g. deploying a specific digest), you can later migrate to Railway's GraphQL API or use their official GitHub integration.
+
+### Using Railway's Official GitHub Integration (Alternative)
+
+Instead of (or in addition to) the custom `deploy-railway` job, you can:
+1. Install the official **Railway GitHub App**.
+2. Link your repository directly in the Railway dashboard.
+3. Configure the service to deploy from your Docker Hub image.
+4. Railway will automatically deploy when new images are pushed (or on certain events).
+
+This can be cleaner than maintaining custom CLI deploy steps.
 
 ## Need Help?
 
