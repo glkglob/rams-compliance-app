@@ -18,9 +18,15 @@ const nextConfig: NextConfig = {
     const sentryIngest = 'https://*.ingest.de.sentry.io';
     const supabaseHosts = 'https://*.supabase.co wss://*.supabase.co';
 
+    // Add 'unsafe-eval' only in development (required by React)
+    const scriptSrc =
+      process.env.NODE_ENV === 'development'
+        ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+        : "script-src 'self' 'unsafe-inline'";
+
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      scriptSrc,
       `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
       'font-src https://fonts.gstatic.com',
       `img-src 'self' data: blob: ${supabaseHosts}`,
@@ -53,7 +59,7 @@ export default withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
 
-  // Disable automatic wrapping of error boundaries (prevents useContext crash on _global-error)
+  // Disable automatic wrapping of error boundaries
   automaticVercelMonitors: false,
 
   // Reduce Sentry build noise
@@ -65,6 +71,6 @@ export default withSentryConfig(nextConfig, {
     filesToDeleteAfterUpload: ['.next/static/**/*.map'],
   },
 
-  // Only enable in production
+  // Only enable Sentry in production
   enabled: process.env.NODE_ENV === 'production',
 });
