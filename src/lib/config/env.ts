@@ -53,23 +53,36 @@ export function getSupabaseEnv() {
   return { supabaseUrl, supabaseKey };
 }
 
+// Platforms like Railway inject configured-but-blank service variables as an
+// empty string ("") rather than leaving them unset. An empty string still
+// reaches validators like z.string().min(1) / z.string().url() and fails them,
+// even though the intent is "not provided". That failure makes validateEnv()
+// throw inside the instrumentation hook, so the process exits before binding
+// its port and the /api/health check never gets a response. Treat empty or
+// whitespace-only values as undefined so optional vars degrade gracefully.
+const emptyToUndefined = (value: unknown) =>
+  typeof value === 'string' && value.trim() === '' ? undefined : value;
+
+const optionalString = z.preprocess(emptyToUndefined, z.string().min(1).optional());
+const optionalUrl = z.preprocess(emptyToUndefined, z.string().url().optional());
+
 const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   // New recommended public key (publishable). Legacy anon key supported for backward compatibility.
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: optionalString,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: optionalString,
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   OPENAI_API_KEY: z.string().min(1),
   RESEND_API_KEY: z.string().min(1),
   // Optional — sendEmail() degrades gracefully when this is unset, so we don't
   // want a missing value to crash the process at startup on Railway.
-  RESEND_FROM_EMAIL: z.string().min(1).optional(),
+  RESEND_FROM_EMAIL: optionalString,
   DATABASE_URL: z.string().min(1),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   // Optional — rate limiting is disabled when absent (dev convenience).
   // Validated as required in production further below.
-  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
-  UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
+  UPSTASH_REDIS_REST_URL: optionalUrl,
+  UPSTASH_REDIS_REST_TOKEN: optionalString,
 });
 
 export type Env = z.infer<typeof envSchema>;
