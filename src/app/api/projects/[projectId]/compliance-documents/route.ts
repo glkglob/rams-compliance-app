@@ -5,9 +5,9 @@ import { createServerSupabase } from "@/lib/db/supabase-server";
 import { canManageProject } from "@/lib/auth/permissions";
 import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 import { logger } from "@/lib/logging";
-import { chunkText } from "@/lib/documents/chunk-text";
-import { extractTextFromFile } from "@/lib/documents/extract-text";
 import { validateFile } from "@/lib/documents/file-validation";
+import { getDocumentSignedUrl } from "@/lib/documents/storage";
+import { enqueueDocumentProcessing, isQStashConfigured } from "@/lib/jobs/document-queue";
 
 export const maxDuration = 300;
 
@@ -70,10 +70,8 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
       return NextResponse.json({ error: "Failed to upload file" }, { status: 500 });
     }
 
-    const { data: signedUrlData } = await supabase.storage
-      .from("documents")
-      .createSignedUrl(storagePath, 60 * 60);
-
+    // Persist only the storage_path — signed URLs are minted on demand (GET)
+    // so we never store a stale, short-lived URL.
     const { data: document, error: insertError } = await supabase
       .from("compliance_documents")
       .insert({
@@ -81,10 +79,10 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
         file_name: file.name,
         file_type: validation.normalisedFileType,
         file_size: file.size,
-        file_url: signedUrlData?.signedUrl ?? null,
+        file_url: null,
         storage_path: storagePath,
         document_category: category,
-        extraction_status: "processing",
+        extraction_status: "pending",
       })
       .select()
       .single();
@@ -94,72 +92,54 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
       return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
-    try {
-      const extractionResult = await extractTextFromFile(fileBuffer, file.type, file.name);
+    // Create a processing job and hand the heavy work off to the background
+    // worker via QStash. Nothing CPU-bound runs in this request.
+    const { data: job, error: jobError } = await supabase
+      .from("document_processing_jobs")
+      .insert({ document_id: document.id, status: "pending" })
+      .select()
+      .single();
 
-      const { error: updateError } = await supabase
-        .from("compliance_documents")
-        .update({
-          extracted_text: extractionResult.extractedText ?? null,
-          extraction_status: extractionResult.status === "complete" ? "complete" : "failed",
-          extraction_confidence: extractionResult.confidence,
-        })
-        .eq("id", document.id);
-
-      if (updateError) {
-        logger.error("Failed to update document with extraction results", { error: String(updateError) });
-      }
-
-      if (extractionResult.extractedText) {
-        const chunks = chunkText(extractionResult.extractedText);
-        const chunkRecords = chunks.map((chunk) => ({
-          document_id: document.id,
-          chunk_text: chunk.text,
-          chunk_index: chunk.index,
-        }));
-
-        const { error: chunksError } = await supabase
-          .from("document_chunks")
-          .insert(chunkRecords);
-
-        if (chunksError) {
-          logger.error("Failed to create document chunks", { error: String(chunksError) });
-        }
-      }
-
-      await createAuditLog("UPLOAD_COMPLIANCE_DOCUMENT", "compliance_document", document.id, {
-        userId: user.id,
-        details: {
-          fileName: file.name,
-          fileType: file.type,
-          fileSize: file.size,
-          extractionStatus: extractionResult.status,
-          extractionConfidence: extractionResult.confidence,
-        },
-      });
-
-      return NextResponse.json(
-        {
-          ...document,
-          extracted_text: extractionResult.extractedText,
-          extraction_status: extractionResult.status === "complete" ? "complete" : "failed",
-          extraction_confidence: extractionResult.confidence,
-          requires_manual_review: extractionResult.requiresManualReview,
-          issues: extractionResult.issues,
-        },
-        { status: 201 }
-      );
-    } catch (error) {
-      await supabase
-        .from("compliance_documents")
-        .update({ extraction_status: "failed" })
-        .eq("id", document.id);
-
-      return NextResponse.json(
-        { ...document, extraction_status: "failed", error: "Text extraction failed" },
-        { status: 201 }
-      );
+    if (jobError || !job) {
+      logger.error("Failed to create processing job", { error: jobError?.message });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
+
+    if (isQStashConfigured()) {
+      try {
+        await enqueueDocumentProcessing({
+          documentId: document.id,
+          jobId: job.id,
+          projectId,
+        });
+      } catch (error) {
+        // The upload succeeded; leave the job `pending` so it can be retried.
+        logger.error("Failed to enqueue document processing", {
+          documentId: document.id,
+          jobId: job.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    } else {
+      logger.warn("QStash not configured — document left pending", {
+        documentId: document.id,
+        jobId: job.id,
+      });
+    }
+
+    await createAuditLog("UPLOAD_COMPLIANCE_DOCUMENT", "compliance_document", document.id, {
+      userId: user.id,
+      details: {
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+      },
+    });
+
+    return NextResponse.json(
+      { ...document, job_id: job.id, job_status: job.status },
+      { status: 201 }
+    );
   } catch (error) {
     return handleAPIError(error);
   }
@@ -195,12 +175,10 @@ export async function GET(_request: Request, { params }: ProjectDocsContext) {
     }
 
     const documentsWithUrls = await Promise.all(
-      (documents ?? []).map(async (doc: { storage_path: string; [key: string]: any }) => {
-        const { data: signedUrlData } = await supabase.storage
-          .from("documents")
-          .createSignedUrl(doc.storage_path, 60 * 60);
-        return { ...doc, file_url: signedUrlData?.signedUrl ?? null };
-      })
+      (documents ?? []).map(async (doc: { storage_path: string; [key: string]: any }) => ({
+        ...doc,
+        file_url: await getDocumentSignedUrl(supabase, doc.storage_path),
+      }))
     );
 
     return NextResponse.json(documentsWithUrls, { status: 200 });

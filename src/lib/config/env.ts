@@ -83,6 +83,17 @@ const envSchema = z.object({
   // Validated as required in production further below.
   UPSTASH_REDIS_REST_URL: optionalUrl,
   UPSTASH_REDIS_REST_TOKEN: optionalString,
+  // Optional — async document processing via QStash. When unset, uploads
+  // succeed but jobs stay `pending` (no background processing).
+  QSTASH_TOKEN: optionalString,
+  QSTASH_CURRENT_SIGNING_KEY: optionalString,
+  QSTASH_NEXT_SIGNING_KEY: optionalString,
+  // Optional — bearer secret allowing the processing worker to be triggered
+  // without a QStash signature (manual/cron retriggering).
+  CRON_SECRET: optionalString,
+  // Optional — public base URL used for QStash callbacks (falls back to
+  // RAILWAY_PUBLIC_DOMAIN / VERCEL_URL at runtime).
+  APP_URL: optionalUrl,
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -100,6 +111,11 @@ export function validateEnv(): Env {
     NODE_ENV: process.env.NODE_ENV,
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+    QSTASH_TOKEN: process.env.QSTASH_TOKEN,
+    QSTASH_CURRENT_SIGNING_KEY: process.env.QSTASH_CURRENT_SIGNING_KEY,
+    QSTASH_NEXT_SIGNING_KEY: process.env.QSTASH_NEXT_SIGNING_KEY,
+    CRON_SECRET: process.env.CRON_SECRET,
+    APP_URL: process.env.APP_URL,
   });
 
   if (!result.success) {

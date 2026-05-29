@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { canManageProject } from "@/lib/auth/permissions";
 import { logger } from "@/lib/logging";
-import { extractTextFromFile } from "@/lib/documents/extract-text";
-import { chunkText } from "@/lib/documents/chunk-text";
-import { getMimeTypeForFileType } from "@/lib/documents/file-validation";
+import { enqueueDocumentProcessing, isQStashConfigured } from "@/lib/jobs/document-queue";
 
 export const maxDuration = 300;
 
@@ -11,6 +10,11 @@ type ExtractRouteContext = {
   params: Promise<{ documentId: string }>;
 };
 
+/**
+ * Re-run the async processing pipeline for an existing document (e.g. after a
+ * previous failure). Creates a fresh processing job and enqueues it via QStash;
+ * the heavy work happens in /api/process-document, not here.
+ */
 export async function POST(_request: Request, { params }: ExtractRouteContext) {
   try {
     const { documentId } = await params;
@@ -34,52 +38,48 @@ export async function POST(_request: Request, { params }: ExtractRouteContext) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
 
-    const { data: fileData, error: downloadError } = await supabase.storage
-      .from("documents")
-      .download(document.storage_path);
-
-    if (downloadError || !fileData) {
-      return NextResponse.json({ error: "Failed to download file" }, { status: 500 });
+    const canManage = await canManageProject(document.project_id);
+    if (!canManage) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const fileBuffer = Buffer.from(await fileData.arrayBuffer());
-    const mimeType = getMimeTypeForFileType(document.file_type);
-    const extractionResult = await extractTextFromFile(fileBuffer, mimeType, document.file_name);
-
-    const { error: updateError } = await supabase
+    await supabase
       .from("compliance_documents")
-      .update({
-        extracted_text: extractionResult.extractedText ?? null,
-        extraction_status: extractionResult.status === "complete" ? "complete" : "failed",
-        extraction_confidence: extractionResult.confidence,
-      })
+      .update({ extraction_status: "pending" })
       .eq("id", documentId);
 
-    if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+    const { data: job, error: jobError } = await supabase
+      .from("document_processing_jobs")
+      .insert({ document_id: documentId, status: "pending" })
+      .select()
+      .single();
+
+    if (jobError || !job) {
+      logger.error("Failed to create re-processing job", { error: jobError?.message });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
-    if (extractionResult.extractedText) {
-      await supabase.from("document_chunks").delete().eq("document_id", documentId);
-
-      const chunks = chunkText(extractionResult.extractedText);
-      const chunkRecords = chunks.map((chunk) => ({
-        document_id: documentId,
-        chunk_text: chunk.text,
-        chunk_index: chunk.index,
-      }));
-
-      await supabase.from("document_chunks").insert(chunkRecords);
+    if (isQStashConfigured()) {
+      try {
+        await enqueueDocumentProcessing({
+          documentId,
+          jobId: job.id,
+          projectId: document.project_id,
+        });
+      } catch (error) {
+        logger.error("Failed to enqueue re-processing", {
+          documentId,
+          jobId: job.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    } else {
+      logger.warn("QStash not configured — document left pending", { documentId, jobId: job.id });
     }
 
     return NextResponse.json(
-      {
-        ...document,
-        extracted_text: extractionResult.extractedText,
-        extraction_status: extractionResult.status === "complete" ? "complete" : "failed",
-        extraction_confidence: extractionResult.confidence,
-      },
-      { status: 200 }
+      { ...document, extraction_status: "pending", job_id: job.id, job_status: job.status },
+      { status: 202 }
     );
   } catch (error) {
     logger.error("Error re-extracting text", { error: error instanceof Error ? error.message : String(error) });
