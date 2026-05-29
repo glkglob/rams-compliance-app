@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { POST } from '../projects/route';
 
-vi.mock('@/lib/db/supabase-server', () => ({
-  createServerSupabase: vi.fn(() =>
+vi.mock('@/lib/db/supabase-with-timeout', () => ({
+  createServerSupabaseWithTimeout: vi.fn(() =>
     Promise.resolve({
       auth: {
         getUser: vi.fn(() =>
