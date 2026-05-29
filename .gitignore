@@ -51,3 +51,5 @@ test-results/
 
 # Tesseract OCR training data (downloaded at build/runtime)
 *.traineddata
+.windsurf/
+.windsurf/
