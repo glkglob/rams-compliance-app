@@ -129,6 +129,18 @@ export function ComplianceDocumentsTab({ projectId }: { projectId: string }) {
     loadDocuments();
   }, [loadDocuments]);
 
+  // While any document is still being processed in the background, poll for
+  // status updates until everything has settled (complete/failed).
+  const hasInFlight = documents.some(
+    (d) => d.extraction_status === "pending" || d.extraction_status === "processing"
+  );
+
+  useEffect(() => {
+    if (!hasInFlight) return;
+    const interval = setInterval(loadDocuments, 4000);
+    return () => clearInterval(interval);
+  }, [hasInFlight, loadDocuments]);
+
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
       for (const file of acceptedFiles) {
@@ -220,15 +232,27 @@ export function ComplianceDocumentsTab({ projectId }: { projectId: string }) {
 
       if (response.ok) {
         const data = await response.json();
-        alert(`Successfully extracted ${data.count} requirements!`);
+        addToast({
+          title: "Requirements extracted",
+          description: `Successfully extracted ${data.count} requirements.`,
+          variant: "success",
+        });
         loadDocuments();
       } else {
-        const err = await response.json();
-        alert(`Failed to extract requirements: ${err.error}`);
+        const err = await response.json().catch(() => ({ error: "Extraction failed" }));
+        addToast({
+          title: "Extraction failed",
+          description: err.error ?? "Could not extract requirements.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Failed to extract requirements:', error);
-      alert('Failed to extract requirements');
+      addToast({
+        title: "Extraction failed",
+        description: "Network error — please try again.",
+        variant: "destructive",
+      });
     } finally {
       setExtractingRequirements(false);
     }
