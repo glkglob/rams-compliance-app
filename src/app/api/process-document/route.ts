@@ -176,7 +176,7 @@ export async function POST(request: Request) {
           source_document_id: req.sourceDocumentId,
           requirement_code: req.requirementCode,
           requirement_text: req.requirementText,
-          category: req.category,
+          category: document.document_category ?? 'other',
           severity: req.severity,
           source_excerpt: req.sourceExcerpt,
         })),
