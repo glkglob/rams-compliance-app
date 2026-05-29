@@ -40,9 +40,40 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# -----------------------------------------------------------------------------
+# Public (NEXT_PUBLIC_*) build-time configuration
+# -----------------------------------------------------------------------------
+# CRITICAL: Next.js inlines NEXT_PUBLIC_* variables into the CLIENT bundle at
+# BUILD time. They are NOT read at runtime in the browser. If they are absent
+# here, the client Supabase factory throws "Missing required environment
+# variables" during hydration and the whole app goes dead after the loading
+# screen. Setting these only as Railway *runtime* vars does NOT help — they must
+# be present during `next build`.
+#
+# These values are PUBLIC by design (the publishable/anon key is meant to be
+# exposed in the browser and is protected by RLS), so baking them into the image
+# is expected and safe. Real secrets (service-role key, OpenAI, etc.) are NOT
+# passed here and remain runtime-only.
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG NEXT_PUBLIC_SENTRY_DSN
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
+
 # Disable Next.js telemetry (keeps builds quiet and avoids network calls)
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+
+# Fail the build early if the public Supabase config is missing, instead of
+# silently shipping a broken client bundle that dies in the browser.
+RUN if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || { [ -z "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" ] && [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ]; }; then \
+      echo "ERROR: NEXT_PUBLIC_SUPABASE_URL and a public key (NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY) must be passed as Docker build args." >&2; \
+      echo "       These are inlined into the client bundle at build time; without them the app dies after the loading screen." >&2; \
+      exit 1; \
+    fi
 
 # Build the app (uses standalone output from next.config.ts)
 RUN npm run build
