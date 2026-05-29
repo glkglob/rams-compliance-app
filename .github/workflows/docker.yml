@@ -17,13 +17,10 @@ jobs:
     permissions:
       contents: read
       packages: write
-<<<<<<< HEAD
-=======
 
     outputs:
       digest: ${{ steps.build.outputs.digest }}
 
->>>>>>> 56b0fc9 (ci: improve Railway deploy job)
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -49,12 +46,8 @@ jobs:
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
-<<<<<<< HEAD
-      - name: Build and push Docker image
-=======
       - name: Build and push Docker image (using native action for rich tagging)
         id: build
->>>>>>> 56b0fc9 (ci: improve Railway deploy job)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -66,8 +59,6 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64
 
-<<<<<<< HEAD
-=======
       - name: Image digest
         if: github.event_name != 'pull_request'
         run: |
@@ -80,7 +71,7 @@ jobs:
   # pull the latest image from Docker Hub). Requires RAILWAY_TOKEN.
   # ---------------------------------------------------------------------------
   deploy-railway:
-    needs: docker
+    needs: build-and-push
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
     steps:
@@ -112,7 +103,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          IMAGE_DIGEST="${{ needs.docker.outputs.digest }}"
+          IMAGE_DIGEST="${{ needs.build-and-push.outputs.digest }}"
           IMAGE_REF="${{ env.IMAGE_NAME }}:latest"
 
           echo "=== Railway Deployment ==="

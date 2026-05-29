@@ -18,7 +18,7 @@ const DEV_REMOTE = path.join(ROOT, '.env.development.remote');
 
 const LOCAL_CONTENT = `# Local Supabase (from \`supabase start\`)
 NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
 
 DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
@@ -26,7 +26,7 @@ DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
 
 const REMOTE_CONTENT = `# Remote Supabase (production/staging)
 NEXT_PUBLIC_SUPABASE_URL=https://gfykygieoxattypakrwa.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_X4osdi2ggYXoAxaIpQR-TA_Brqi5Dds
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
 
 DATABASE_URL=postgresql://postgres:qn^m6UZbZwXr5vuv%JTc1ThrXqWS6@db.gfykygieoxattypakrwa.supabase.co:5432/postgres

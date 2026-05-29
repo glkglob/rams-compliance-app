@@ -21,17 +21,14 @@ export function getSupabaseEnv() {
   // undefined on the client side.
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-  // Support both the new Publishable Key (recommended) and the legacy Anon Key
-  const supabaseKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
     if (process.env.NEXT_PHASE === 'phase-production-build') {
       return { supabaseUrl: '', supabaseKey: '' };
     }
     throw new Error(
-      'Missing required environment variables: NEXT_PUBLIC_SUPABASE_URL and (NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY)',
+      'Missing required environment variables: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY',
     );
   }
 
@@ -68,9 +65,7 @@ const optionalUrl = z.preprocess(emptyToUndefined, z.string().url().optional());
 
 const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
-  // New recommended public key (publishable). Legacy anon key supported for backward compatibility.
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: optionalString,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: optionalString,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   OPENAI_API_KEY: z.string().min(1),
   RESEND_API_KEY: z.string().min(1),
@@ -101,7 +96,6 @@ export type Env = z.infer<typeof envSchema>;
 export function validateEnv(): Env {
   const result = envSchema.safeParse({
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
@@ -123,11 +117,6 @@ export function validateEnv(): Env {
     throw new Error(`Missing or invalid environment variables: ${missingVars}`);
   }
 
-  // Ensure at least one public Supabase key is provided
-  const hasPublicKey = !!result.data.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || !!result.data.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!hasPublicKey) {
-    throw new Error('Missing Supabase public key: set either NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY');
-  }
 
   const { NODE_ENV, UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } = result.data;
   const upstashMissing = !UPSTASH_REDIS_REST_URL || !UPSTASH_REDIS_REST_TOKEN;
