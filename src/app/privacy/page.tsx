@@ -35,7 +35,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-2xl font-semibold">1. Who we are</h2>
             <p>
-              RAMS Compliance Review ("we", "us", "our") is a tool that helps construction project teams
+              RAMS Compliance Review (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;) is a tool that helps construction project teams
               manage and review Risk Assessment and Method Statement (RAMS) documents for compliance with
               UK health and safety law.
             </p>
@@ -215,7 +215,7 @@ export default function PrivacyPolicyPage() {
             <ul className="list-disc pl-6 space-y-1">
               <li>Access the personal data we hold about you (Subject Access Request)</li>
               <li>Rectify inaccurate or incomplete data</li>
-              <li>Erase your personal data ("right to be forgotten") — subject to legal retention obligations</li>
+              <li>Erase your personal data (&quot;right to be forgotten&quot;) — subject to legal retention obligations</li>
               <li>Restrict processing in certain circumstances</li>
               <li>Data portability (where processing is based on consent or contract)</li>
               <li>Object to processing based on legitimate interests</li>
@@ -265,11 +265,11 @@ export default function PrivacyPolicyPage() {
             <h2 className="text-2xl font-semibold">11. Contacting the ICO</h2>
             <p>
               If you are unhappy with how we have handled your personal data, you have the right to complain
-              to the UK Information Commissioner's Office (ICO):
+              to the UK Information Commissioner&rsquo;s Office (ICO):
             </p>
             <div className="mt-3 rounded-md border p-4 text-sm">
               <p>
-                <strong>Information Commissioner's Office</strong><br />
+                <strong>Information Commissioner&rsquo;s Office</strong><br />
                 Wycliffe House, Water Lane<br />
                 Wilmslow, Cheshire SK9 5AF<br />
                 United Kingdom

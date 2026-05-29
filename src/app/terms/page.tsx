@@ -33,7 +33,7 @@ export default function TermsOfServicePage() {
           <section>
             <h2 className="text-2xl font-semibold">1. Acceptance of terms</h2>
             <p>
-              By creating an account or using the RAMS Compliance Review service ("the Service"), you
+              By creating an account or using the RAMS Compliance Review service (&quot;the Service&quot;), you
               agree to be bound by these Terms of Service and our{' '}
               <Link href="/privacy" className="underline">Privacy Policy</Link>. If you do not agree,
               you must not use the Service.
@@ -97,7 +97,7 @@ export default function TermsOfServicePage() {
               <p className="mt-2 text-sm">
                 The Service is a support tool. Under UK law, duty holders (Principal Contractors,
                 Contractors, Designers, etc.) retain full legal responsibility for health and safety.
-                Use of this tool does not transfer or reduce any statutory duties. A "competent person"
+                Use of this tool does not transfer or reduce any statutory duties. A &quot;competent person&quot;
                 must always review and approve RAMS before work commences.
               </p>
             </div>
@@ -150,7 +150,7 @@ export default function TermsOfServicePage() {
               To the maximum extent permitted by law:
             </p>
             <ul className="list-disc pl-6">
-              <li>The Service is provided "as is" and "as available" without warranties of any kind.</li>
+              <li>The Service is provided &quot;as is&quot; and &quot;as available&quot; without warranties of any kind.</li>
               <li>We are not liable for any direct, indirect, incidental, special, or consequential loss arising from use of the Service, including (but not limited to) personal injury, death, regulatory fines, or project delays.</li>
               <li>Nothing in these Terms excludes liability for death or personal injury caused by our negligence, fraud, or any other liability that cannot be excluded under English law.</li>
             </ul>
@@ -186,7 +186,7 @@ export default function TermsOfServicePage() {
             <h2 className="text-2xl font-semibold">13. Contact</h2>
             <p>
               For questions about these Terms, account deletion, or data requests, please use the contact
-              details provided by your organisation's administrator or the email address associated with
+              details provided by your organisation&rsquo;s administrator or the email address associated with
               your account welcome message.
             </p>
           </section>
