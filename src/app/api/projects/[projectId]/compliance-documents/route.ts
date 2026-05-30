@@ -8,6 +8,7 @@ import { logger } from "@/lib/logging";
 import { validateFile } from "@/lib/documents/file-validation";
 import { getDocumentSignedUrl } from "@/lib/documents/storage";
 import { enqueueDocumentProcessing, isQStashConfigured } from "@/lib/jobs/document-queue";
+import { complianceDocumentCdmMetadataFromFormData } from "@/lib/cdm/metadata";
 
 export const maxDuration = 300;
 
@@ -36,6 +37,7 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const category = formData.get("category") as string;
+    const cdmMetadata = complianceDocumentCdmMetadataFromFormData(formData);
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -83,6 +85,7 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
         storage_path: storagePath,
         document_category: category,
         extraction_status: "pending",
+        ...cdmMetadata,
       })
       .select()
       .single();

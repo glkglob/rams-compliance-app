@@ -74,6 +74,7 @@ export async function POST(request: Request, { params }: Context) {
       .update({
         review_status: decision,
         decision_explanation: `[MANUAL OVERRIDE] ${reason}`,
+        reviewed_for_cdm: true,
       })
       .eq("id", ramsId);
 

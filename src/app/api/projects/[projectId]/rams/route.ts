@@ -7,6 +7,7 @@ import { logger } from "@/lib/logging";
 import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 import { extractTextFromFile } from "@/lib/documents/extract-text";
 import { validateFile } from "@/lib/documents/file-validation";
+import { ramsCdmMetadataFromFormData } from "@/lib/cdm/metadata";
 
 export const maxDuration = 300;
 
@@ -35,6 +36,7 @@ export async function POST(request: Request, { params }: Context) {
     const subcontractorName = formData.get("subcontractorName") as string;
     const subcontractorEmail = formData.get("subcontractorEmail") as string | null;
     const tradePackage = formData.get("tradePackage") as string | null;
+    const cdmMetadata = ramsCdmMetadataFromFormData(formData);
 
     if (!file || !subcontractorName) {
       return NextResponse.json(
@@ -84,6 +86,7 @@ export async function POST(request: Request, { params }: Context) {
         storage_path: storagePath,
         submitted_by: user.id,
         review_status: "processing",
+        ...cdmMetadata,
       })
       .select()
       .single();

@@ -335,6 +335,7 @@ export async function orchestrateRAMSReview(
       compliance_score: scoring.complianceScore,
       confidence_score: scoring.confidenceScore,
       decision_explanation: explanation.summary,
+      reviewed_for_cdm: true,
     }).eq('id', ramsSubmissionId);
     if (ramsUpdateError) {
       throw new Error(`Failed to update RAMS submission: ${ramsUpdateError.message}`);
