@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ReviewCheck {
   id: string;
@@ -57,6 +58,7 @@ interface RAMSDetail {
   projects: { name: string; compliance_threshold: number };
   rams_reviews: Review[];
   generated_emails: GeneratedEmail[];
+  currentUserRole: string | null;
 }
 
 function DecisionIcon({ status }: { status: string }) {
@@ -88,6 +90,10 @@ export default function RAMSDetailPage() {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [copied, setCopied] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [overrideDecision, setOverrideDecision] = useState<"approved" | "rejected" | "manual_review">("approved");
+  const [overrideReason, setOverrideReason] = useState("");
+  const [overriding, setOverriding] = useState(false);
+  const [overrideSuccess, setOverrideSuccess] = useState(false);
 
   const loadRAMS = useCallback(async () => {
     try {
@@ -159,6 +165,34 @@ export default function RAMSDetailPage() {
       setActionError("Failed to send email unexpectedly");
     } finally {
       setSendingEmail(false);
+    }
+  };
+
+  const handleOverride = async () => {
+    if (overrideReason.trim().length < 10) {
+      setActionError("Override reason must be at least 10 characters.");
+      return;
+    }
+    setOverriding(true);
+    setActionError(null);
+    try {
+      const response = await fetch(`/api/rams/${params.ramsId}/override`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision: overrideDecision, reason: overrideReason }),
+      });
+      if (response.ok) {
+        setOverrideSuccess(true);
+        setOverrideReason("");
+        await loadRAMS();
+      } else {
+        const data = (await response.json()) as { error?: string };
+        setActionError(data.error ?? "Override failed");
+      }
+    } catch {
+      setActionError("Override failed unexpectedly");
+    } finally {
+      setOverriding(false);
     }
   };
 
@@ -238,6 +272,74 @@ export default function RAMSDetailPage() {
 
         <TabsContent value="overview">
           <div className="grid gap-6 md:grid-cols-2">
+            {/* Manual Override — only for admin / project_manager */}
+            {(rams.currentUserRole === "admin" || rams.currentUserRole === "project_manager") && (
+              <Card className="md:col-span-2 border-amber-200 bg-amber-50/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-amber-800">
+                    <AlertTriangle className="h-4 w-4" />
+                    Reviewer Decision Override
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {overrideSuccess && (
+                    <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                      Override applied successfully.
+                    </div>
+                  )}
+                  <p className="text-sm text-muted-foreground">
+                    As {rams.currentUserRole === "admin" ? "an admin" : "a project manager"}, you can override the AI decision. Your decision and reason will be permanently recorded in the audit trail.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {(["approved", "rejected", "manual_review"] as const).map((d) => (
+                      <button
+                        key={d}
+                        onClick={() => setOverrideDecision(d)}
+                        className={`rounded-md border px-4 py-2 text-sm font-medium transition-colors ${
+                          overrideDecision === d
+                            ? d === "approved"
+                              ? "border-green-600 bg-green-600 text-white"
+                              : d === "rejected"
+                              ? "border-destructive bg-destructive text-white"
+                              : "border-amber-500 bg-amber-500 text-white"
+                            : "border-border bg-background text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {d === "manual_review" ? "Needs Review" : d.charAt(0).toUpperCase() + d.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">
+                      Reason <span className="text-muted-foreground">(minimum 10 characters)</span>
+                    </label>
+                    <Textarea
+                      placeholder="Explain the reason for this override decision…"
+                      value={overrideReason}
+                      onChange={(e) => setOverrideReason(e.target.value)}
+                      rows={3}
+                      className="resize-none"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleOverride}
+                    disabled={overriding || overrideReason.trim().length < 10}
+                    variant={overrideDecision === "approved" ? "default" : "destructive"}
+                    className="w-full sm:w-auto"
+                  >
+                    {overriding ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        Applying Override…
+                      </>
+                    ) : (
+                      `Confirm Override: ${overrideDecision === "manual_review" ? "Needs Review" : overrideDecision.charAt(0).toUpperCase() + overrideDecision.slice(1)}`
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle>Submission Details</CardTitle>

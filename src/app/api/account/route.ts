@@ -39,20 +39,58 @@ export async function DELETE(request: Request) {
 
     const userId = user.id;
 
-    // Require explicit confirmation from the client.
+    // Require explicit confirmation and re-authentication from the client.
     const body = await request.json().catch(() => ({}));
     const confirmed = body?.confirmed === true;
+    const password: string | undefined = body?.password;
+    const otp: string | undefined = body?.otp;
 
     if (!confirmed) {
       return NextResponse.json(
         {
           error: 'Confirmation required',
           message:
-            'Send { "confirmed": true } to schedule your account for deletion. ' +
+            'Send { "confirmed": true, "password": "<your-password>" } to schedule your account for deletion. ' +
             `Your data will be retained for ${RECOVERY_WINDOW_DAYS} days before permanent removal.`,
         },
         { status: 400 },
       );
+    }
+
+    if (!password && !otp) {
+      return NextResponse.json(
+        {
+          error: 'Re-authentication required',
+          message: 'Provide your password or a one-time passcode to confirm account deletion.',
+        },
+        { status: 403 },
+      );
+    }
+
+    // Verify the user's identity before proceeding.
+    if (password) {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email!,
+        password,
+      });
+      if (signInError) {
+        return NextResponse.json(
+          { error: 'Re-authentication failed', message: 'Invalid password.' },
+          { status: 403 },
+        );
+      }
+    } else if (otp) {
+      const { error: otpError } = await supabase.auth.verifyOtp({
+        email: user.email!,
+        token: otp,
+        type: 'email',
+      });
+      if (otpError) {
+        return NextResponse.json(
+          { error: 'Re-authentication failed', message: 'Invalid or expired OTP.' },
+          { status: 403 },
+        );
+      }
     }
 
     const admin = getSupabaseAdmin();

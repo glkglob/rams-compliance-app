@@ -62,6 +62,7 @@ jobs:
             NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
             NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
             NEXT_PUBLIC_SENTRY_DSN=${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+            NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
 
       - name: Image digest
         if: github.event_name != 'pull_request'
@@ -144,3 +145,20 @@ jobs:
           exit 1
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Smoke test health check
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_URL="${{ secrets.APP_URL }}"
+          DEADLINE=$((SECONDS + 60))
+          echo "Waiting for $APP_URL/api/health to return 200..."
+          until curl --fail --silent --max-time 5 "$APP_URL/api/health"; do
+            if [ $SECONDS -ge $DEADLINE ]; then
+              echo "::error::Health check did not return 200 within 60 seconds"
+              exit 1
+            fi
+            echo "Not ready yet, retrying in 5s..."
+            sleep 5
+          done
+          echo "Health check passed."

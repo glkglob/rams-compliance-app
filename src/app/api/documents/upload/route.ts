@@ -1,32 +1,22 @@
 import { NextResponse } from 'next/server';
 import { extractText } from '@/lib/extractText';
+import { createServerSupabase } from '@/lib/db/supabase-server';
+import { createAuditLog } from '@/lib/audit/audit-log';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 
 export const runtime = 'nodejs'; // Required for pdf-parse / mammoth
 
-// --- Simple in-memory IP rate limit for this unauthenticated demo endpoint ---
-const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 10;
-
-const ipHits = new Map<string, { count: number; resetAt: number }>();
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = ipHits.get(ip);
-  if (!entry || now >= entry.resetAt) {
-    ipHits.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return false;
-  }
-  entry.count++;
-  return entry.count > RATE_LIMIT_MAX_REQUESTS;
-}
-
-// Periodically evict stale entries to prevent unbounded memory growth
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, entry] of ipHits) {
-    if (now >= entry.resetAt) ipHits.delete(ip);
-  }
-}, RATE_LIMIT_WINDOW_MS).unref();
+// --- Upstash Redis sliding window rate limiter (optional — skipped when vars absent) ---
+const upstashUrl   = process.env.UPSTASH_REDIS_REST_URL;
+const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+const ratelimit = upstashUrl && upstashToken
+  ? new Ratelimit({
+      redis: new Redis({ url: upstashUrl, token: upstashToken }),
+      limiter: Ratelimit.slidingWindow(10, '1 m'),
+      prefix: 'rl:upload',
+    })
+  : null;
 // --- End rate limit ---
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB demo limit
@@ -55,13 +45,24 @@ function isSupportedFile(file: File): boolean {
 
 export async function POST(request: Request) {
   try {
+    // Auth guard — require a valid session
+    const supabase = await createServerSupabase();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Rate limit by IP
     const ip =
       request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
       request.headers.get('x-real-ip') ||
       'unknown';
 
-    if (isRateLimited(ip)) {
+    const { success } = ratelimit ? await ratelimit.limit(ip) : { success: true };
+    if (!success) {
       return NextResponse.json(
         { error: 'Too many upload requests. Please try again in a minute.' },
         { status: 429, headers: { 'Retry-After': '60' } }
@@ -114,6 +115,12 @@ export async function POST(request: Request) {
         { status: 422 } // Unprocessable Entity
       );
     }
+
+    // Fire-and-forget audit log — do not block the response
+    createAuditLog('document_uploaded', 'document', file.name, {
+      userId: user.id,
+      details: { filename: file.name, size: file.size, mimetype: file.type },
+    }).catch(() => {/* non-fatal */});
 
     // Success response matching requirements
     return NextResponse.json({

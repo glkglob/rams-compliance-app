@@ -23,6 +23,19 @@ interface DashboardStats {
   manualReviews: number;
 }
 
+interface ActivityEntry {
+  id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
+}
+
+function formatAction(action: string): string {
+  return action.toLowerCase().replace(/_/g, " ");
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats>({
@@ -34,11 +47,17 @@ export default function DashboardPage() {
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activity, setActivity] = useState<ActivityEntry[]>([]);
 
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const response = await fetch("/api/dashboard/stats");
+        const [statsResponse, activityResponse] = await Promise.all([
+          fetch("/api/dashboard/stats"),
+          fetch("/api/dashboard/activity"),
+        ]);
+
+        const response = statsResponse;
 
         if (response.status === 401) {
           router.push("/login");
@@ -53,6 +72,11 @@ export default function DashboardPage() {
 
         const data = (await response.json()) as DashboardStats;
         setStats(data);
+
+        if (activityResponse.ok) {
+          const activityData = (await activityResponse.json()) as ActivityEntry[];
+          setActivity(activityData);
+        }
       } catch (requestError) {
         console.error("Error loading dashboard:", requestError);
         setError("Unable to load dashboard data right now.");
@@ -176,9 +200,28 @@ export default function DashboardPage() {
             <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">
-              No recent activity to display yet.
-            </p>
+            {activity.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No activity recorded yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {activity.map((entry) => (
+                  <div key={entry.id} className="flex items-start justify-between gap-2 border-b pb-3 last:border-0 last:pb-0">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium capitalize">{formatAction(entry.action)}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{entry.entity_type.replace(/_/g, " ")}</p>
+                    </div>
+                    <p className="shrink-0 text-xs text-muted-foreground">
+                      {new Date(entry.created_at).toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

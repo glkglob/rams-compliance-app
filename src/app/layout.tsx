@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { SentryUserContext } from '@/components/sentry-user-context';
+import { AppHeader } from '@/components/layout/app-header';
 
 import './globals.css';
 
@@ -46,6 +47,7 @@ export default async function RootLayout({
       <body className="font-sans min-h-full bg-background text-foreground antialiased">
         <SentryUserContext userId={userId} userEmail={userEmail} />
         <div className="flex min-h-screen flex-col">
+          <AppHeader />
           <main className="flex-1 bg-background">{children}</main>
 
           <footer className="border-t bg-muted/30 py-6 text-sm text-muted-foreground">

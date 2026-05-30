@@ -41,6 +41,8 @@ export async function GET(_request: Request, { params }: Context) {
       .eq("user_id", user.id)
       .single();
 
+    let currentUserRole: string | null = membership?.role ?? null;
+
     if (!membership) {
       const { data: profile } = await supabase
         .from("profiles")
@@ -51,9 +53,10 @@ export async function GET(_request: Request, { params }: Context) {
       if (!profile || profile.role !== "admin") {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
+      currentUserRole = profile.role;
     }
 
-    return NextResponse.json(rams, { status: 200 });
+    return NextResponse.json({ ...rams, currentUserRole }, { status: 200 });
   } catch (error) {
     logger.error("Error fetching RAMS", { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

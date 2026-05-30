@@ -4,6 +4,7 @@ import { createServerSupabaseWithTimeout } from '@/lib/db/supabase-with-timeout'
 import { handleAPIError, UnauthorizedError } from '@/lib/error-handling';
 import { orchestrateRAMSReview } from '@/lib/ai/orchestrator';
 import { checkRateLimit, rateLimitExceeded } from '@/lib/rate-limit';
+import { createAuditLog } from '@/lib/audit/audit-log';
 
 export const maxDuration = 300;
 
@@ -60,6 +61,11 @@ export async function POST(_request: Request, { params }: RouteContext) {
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
+
+    await createAuditLog('review_triggered', 'review', ramsId, {
+      userId: user.id,
+      details: { decision: result.decision, complianceScore: result.complianceScore },
+    });
 
     return NextResponse.json({
       success: true,
