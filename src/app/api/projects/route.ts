@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { hasPermission } from "@/lib/auth/roles";
+import { ensureProfile } from "@/lib/auth/ensure-profile";
 import { logger } from "@/lib/logging";
 import { createServerSupabaseWithTimeout } from "@/lib/db/supabase-with-timeout";
 import { handleAPIError, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
@@ -20,13 +21,17 @@ export async function POST(request: Request) {
       throw new UnauthorizedError();
     }
 
-    const { data: profile, error: profileError } = await supabase
+    const { data: rawProfile, error: profileError } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
+    const profile =
+      !profileError && rawProfile
+        ? rawProfile
+        : await ensureProfile(user.id, user.email ?? "", user.user_metadata?.full_name as string | undefined);
 
-    if (profileError || !profile) {
+    if (!profile) {
       logger.warn("Profile not found for project creation", { userId: user.id });
       throw new ForbiddenError("Profile not found. Unable to verify permissions for project creation.");
     }
@@ -93,14 +98,20 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: profile, error: profileError } = await supabase
+    const { data: rawProfile, error: profileError } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
 
-    if (profileError || !profile) {
-      return NextResponse.json({ error: "Profile not found" }, { status: 403 });
+    // Defensive fallback for users whose profile wasn't created by the trigger.
+    const profile =
+      !profileError && rawProfile
+        ? rawProfile
+        : await ensureProfile(user.id, user.email ?? "", user.user_metadata?.full_name as string | undefined);
+
+    if (!profile) {
+      return NextResponse.json({ error: "Unable to load user profile" }, { status: 403 });
     }
 
     if (profile.role === "admin") {

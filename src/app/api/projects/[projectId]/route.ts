@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { canManageProject } from "@/lib/auth/permissions";
+import { ensureProfile } from "@/lib/auth/ensure-profile";
 import { logger } from "@/lib/logging";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
@@ -27,7 +28,7 @@ export async function GET(_request: Request, { params }: ProjectRouteContext) {
       throw new UnauthorizedError();
     }
 
-    const [{ data: membership, error: membershipError }, { data: profile, error: profileError }] =
+    const [{ data: membership, error: membershipError }, { data: rawProfile, error: profileError }] =
       await Promise.all([
         supabase
           .from("project_members")
@@ -38,7 +39,17 @@ export async function GET(_request: Request, { params }: ProjectRouteContext) {
         supabase.from("profiles").select("role").eq("id", user.id).single(),
       ]);
 
-    if (membershipError || profileError || !profile) {
+    if (membershipError) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Defensive fallback for users whose profile wasn't created by the trigger.
+    const profile =
+      !profileError && rawProfile
+        ? rawProfile
+        : await ensureProfile(user.id, user.email ?? "", user.user_metadata?.full_name as string | undefined);
+
+    if (!profile) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -158,13 +169,19 @@ export async function DELETE(_request: Request, { params }: ProjectRouteContext)
       throw new UnauthorizedError();
     }
 
-    const { data: profile, error: profileError } = await supabase
+    const { data: rawProfile, error: profileError } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
 
-    if (profileError || !profile || profile.role !== "admin") {
+    // Defensive fallback for users whose profile wasn't created by the trigger.
+    const profile =
+      !profileError && rawProfile
+        ? rawProfile
+        : await ensureProfile(user.id, user.email ?? "", user.user_metadata?.full_name as string | undefined);
+
+    if (!profile || profile.role !== "admin") {
       throw new ForbiddenError();
     }
 

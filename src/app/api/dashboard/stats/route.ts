@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { ensureProfile } from "@/lib/auth/ensure-profile";
 import { logger } from "@/lib/logging";
 import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 
@@ -30,8 +31,15 @@ export async function GET() {
       .eq("id", user.id)
       .single();
 
-    if (profileError || !profile) {
-      return NextResponse.json({ error: "Profile not found" }, { status: 403 });
+    // Defensive fallback: trigger may not have fired for pre-existing users.
+    const effectiveProfile =
+      !profileError && profile
+        ? profile
+        : await ensureProfile(user.id, user.email ?? "", user.user_metadata?.full_name as string | undefined);
+
+    if (!effectiveProfile) {
+      logger.error("Profile unavailable after ensureProfile attempt", { userId: user.id });
+      return NextResponse.json({ error: "Unable to load user profile" }, { status: 403 });
     }
 
     const baseStats: DashboardStats = {
@@ -42,7 +50,7 @@ export async function GET() {
       manualReviews: 0,
     };
 
-    if (profile.role === "admin") {
+    if (effectiveProfile.role === "admin") {
       const [{ count: totalProjects, error: projectError }, { data: ramsData, error: ramsError }] =
         await Promise.all([
           supabase.from("projects").select("*", { count: "exact", head: true }),
