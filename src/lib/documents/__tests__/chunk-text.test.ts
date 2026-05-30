@@ -42,4 +42,15 @@ describe("chunkText", () => {
     const chunks = chunkText("   \n  ", 100, 10);
     expect(chunks.every((c) => c.text.length > 0)).toBe(true);
   });
+
+  it("throws on invalid maxChunkSize <= 0", () => {
+    expect(() => chunkText("hello", 0)).toThrow('maxChunkSize must be greater than 0');
+    expect(() => chunkText("hello", -10)).toThrow('maxChunkSize must be greater than 0');
+  });
+
+  it("throws when overlap >= maxChunkSize or negative", () => {
+    expect(() => chunkText("hello world", 100, 100)).toThrow('overlap must be greater than or equal to 0 and smaller than maxChunkSize');
+    expect(() => chunkText("hello world", 100, 200)).toThrow('overlap must be greater than or equal to 0 and smaller than maxChunkSize');
+    expect(() => chunkText("hello world", 100, -1)).toThrow('overlap must be greater than or equal to 0 and smaller than maxChunkSize');
+  });
 });
