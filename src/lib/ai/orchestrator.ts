@@ -89,15 +89,7 @@ export async function orchestrateRAMSReview(
       .eq('project_id', project.id);
 
     if (existingReqs?.length) {
-      requirements = existingReqs.map((r: {
-        id: string;
-        requirement_code: string;
-        requirement_text: string;
-        category: string;
-        severity: string;
-        source_document_id: string | null;
-        source_excerpt: string | null;
-      }) => {
+      requirements = existingReqs.map((r: any) => {
         requirementDbIds.set(r.requirement_code, r.id);
         return {
           requirementCode: r.requirement_code,
@@ -112,12 +104,7 @@ export async function orchestrateRAMSReview(
     } else {
       const extractionResult = await extractRequirements({
         projectId: project.id,
-        documents: (complianceDocs as Array<{
-          id: string;
-          file_name: string;
-          document_category: string;
-          extracted_text: string | null;
-        }>).map((d) => ({
+        documents: (complianceDocs as any[]).map((d) => ({
           documentId: d.id,
           fileName: d.file_name,
           category: d.document_category,
@@ -145,7 +132,7 @@ export async function orchestrateRAMSReview(
           )
           .select('id, requirement_code');
 
-        inserted?.forEach((row: { id: string; requirement_code: string }) => {
+        inserted?.forEach((row: any) => {
           requirementDbIds.set(row.requirement_code, row.id);
         });
       }
@@ -206,14 +193,7 @@ export async function orchestrateRAMSReview(
     // 8. Persist Review Checks (with safe FKs)
     if (comparison.checks.length > 0) {
       const checkRows = comparison.checks
-        .map((check: {
-          requirementId: string;
-          status: string;
-          severity: string;
-          score: number;
-          ramsEvidence?: string;
-          explanation?: string;
-        }) => ({
+        .map((check: any) => ({
           rams_review_id: review.id,
           requirement_id: requirementDbIds.get(check.requirementId) ?? null,
           status: check.status,
@@ -266,11 +246,10 @@ export async function orchestrateRAMSReview(
       complianceScore: scoring.complianceScore,
       confidenceScore: scoring.confidenceScore,
     };
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+  } catch (error: any) {
     logger.error('orchestrateRAMSReview crashed', {
       ramsSubmissionId,
-      error: errorMessage,
+      error: error?.message,
     });
 
     await supabase
@@ -280,7 +259,7 @@ export async function orchestrateRAMSReview(
 
     return {
       success: false,
-      error: errorMessage || 'Orchestration failed',
+      error: error?.message || 'Orchestration failed',
     };
   }
 }
@@ -290,7 +269,6 @@ export async function orchestrateRAMSReview(
  * Returns relevant document chunks for the given RAMS text.
  */
 async function getRelevantDocumentChunks(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   projectId: string,
   ramsText: string,
