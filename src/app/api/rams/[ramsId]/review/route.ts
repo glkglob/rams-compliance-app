@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 
 import { createServerSupabaseWithTimeout } from '@/lib/db/supabase-with-timeout';
-import { handleAPIError, UnauthorizedError } from '@/lib/error-handling';
+import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from '@/lib/error-handling';
 import { orchestrateRAMSReview } from '@/lib/ai/orchestrator';
 import { checkRateLimit, rateLimitExceeded } from '@/lib/rate-limit';
+import { logger } from '@/lib/logging';
 
 export const maxDuration = 300;
 
@@ -50,7 +51,8 @@ export async function POST(_request: Request, { params }: RouteContext) {
     const result = await orchestrateRAMSReview(ramsId, user.id);
 
     if (!result.success && !result.decision) {
-      return NextResponse.json({ error: result.error }, { status: 500 });
+      logger.error('RAMS review orchestration failed', { ramsId, error: result.error });
+      return internalServerErrorResponse();
     }
 
     const { data: review, error: reviewLoadError } = await supabase

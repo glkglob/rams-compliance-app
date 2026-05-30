@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/db/supabase-admin';
 import { logger } from '@/lib/logging';
+import { withRequestContext } from '@/lib/request-context';
 
-export async function GET() {
+async function getHealth(request: Request) {
+  void request;
   const checks: Record<string, 'ok' | 'error'> = {};
   let healthy = true;
 
@@ -53,3 +55,5 @@ export async function GET() {
     { status: 200 }
   );
 }
+
+export const GET = withRequestContext(getHealth, '/api/health');

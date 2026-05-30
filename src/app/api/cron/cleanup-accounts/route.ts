@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/db/supabase-admin';
 import { hardDeleteAccount } from '@/app/api/account/route';
 import { logger } from '@/lib/logging';
+import { withRequestContext } from '@/lib/request-context';
 
 /**
  * Cron endpoint: permanently deletes accounts whose recovery window has expired.
@@ -17,7 +18,7 @@ import { logger } from '@/lib/logging';
  *   Schedule: daily at 03:00 UTC — "0 3 * * *"
  */
 
-export async function POST(request: Request) {
+async function postCleanupAccounts(request: Request) {
   // --- Auth: require CRON_SECRET ---
   const cronSecret = process.env.CRON_SECRET;
 
@@ -97,3 +98,5 @@ export async function POST(request: Request) {
     { status: 200 },
   );
 }
+
+export const POST = withRequestContext(postCleanupAccounts, '/api/cron/cleanup-accounts');

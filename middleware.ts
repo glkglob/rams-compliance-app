@@ -21,19 +21,26 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { SECURITY_HEADERS } from '@/lib/security-headers';
+import { generateRequestId, REQUEST_ID_HEADER } from '@/lib/request-id';
+import { buildCsp, STATIC_SECURITY_HEADERS } from '@/lib/security-headers';
 
 export function middleware(request: NextRequest) {
   // Generate or propagate a request ID for correlation across logs, errors,
   // and client responses. Using a short, sortable format.
-  const incomingId = request.headers.get('x-request-id');
-  const requestId = incomingId || `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
+  const incomingId = request.headers.get(REQUEST_ID_HEADER);
+  const requestId = incomingId || generateRequestId();
+  const nonce = btoa(crypto.randomUUID());
+  const csp = buildCsp(nonce);
 
   // Clone the request headers so downstream code (route handlers,
   // `runWithRequestContext`, server components) can read the id via
   // `headers().get('x-request-id')`.
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-request-id', requestId);
+  requestHeaders.set(REQUEST_ID_HEADER, requestId);
+  // Next.js reads the nonce from the request CSP during SSR and applies it to
+  // framework scripts/styles. x-nonce is available for any explicit Script use.
+  requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('Content-Security-Policy', csp);
 
   // Let the request continue (with our injected header).
   const response = NextResponse.next({
@@ -44,13 +51,15 @@ export function middleware(request: NextRequest) {
 
   // Apply security headers to *every* response (pages + all API routes).
   // This is the reliable way to cover Route Handlers.
-  for (const { key, value } of SECURITY_HEADERS) {
+  for (const { key, value } of STATIC_SECURITY_HEADERS) {
     response.headers.set(key, value);
   }
+  response.headers.set('Content-Security-Policy', csp);
 
   // Always echo the request ID in the response so clients, curl, and
   // API consumers can correlate their call with server logs.
-  response.headers.set('x-request-id', requestId);
+  response.headers.set(REQUEST_ID_HEADER, requestId);
+  response.headers.set('x-nonce', nonce);
 
   return response;
 }

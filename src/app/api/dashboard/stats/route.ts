@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { ensureProfile } from "@/lib/auth/ensure-profile";
 import { logger } from "@/lib/logging";
-import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
+import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from "@/lib/error-handling";
 
 interface DashboardStats {
   totalProjects: number;
@@ -95,7 +95,8 @@ export async function GET() {
       .eq("user_id", user.id);
 
     if (membershipError) {
-      return NextResponse.json({ error: membershipError.message }, { status: 500 });
+      logger.error("Failed to load dashboard memberships", { error: membershipError.message });
+      return internalServerErrorResponse();
     }
 
     const projectIds = memberships?.map((membership: { project_id: string }) => membership.project_id) ?? [];
@@ -110,7 +111,8 @@ export async function GET() {
       .in("project_id", projectIds);
 
     if (ramsError) {
-      return NextResponse.json({ error: ramsError.message }, { status: 500 });
+      logger.error("Failed to load dashboard RAMS stats", { error: ramsError.message });
+      return internalServerErrorResponse();
     }
 
     return NextResponse.json(

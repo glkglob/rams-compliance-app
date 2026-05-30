@@ -6,8 +6,8 @@
  * - HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, etc.
  *
  * Used by:
- * - next.config.ts headers() → applies to page routes and static assets
- * - middleware.ts → guarantees headers (including on all /api/* Route Handlers)
+ * - next.config.ts headers() → applies non-CSP headers to static assets
+ * - middleware.ts → guarantees headers (including nonce CSP on all /api/* Route Handlers)
  *   and injects per-request x-request-id for observability + correlation.
  *
  * Why both places?
@@ -21,33 +21,43 @@ export const SENTRY_INGEST = 'https://*.ingest.de.sentry.io https://*.ingest.sen
 export const SUPABASE_HOSTS = 'https://*.supabase.co wss://*.supabase.co';
 
 /**
- * Builds the CSP string used across the application.
- * Uses 'unsafe-inline' + 'unsafe-eval' because the project does not run
- * per-request nonce middleware (trade-off for simplicity and compatibility
- * with current component library + inline styles).
+ * Builds the per-request CSP used by middleware.
+ *
+ * Next.js 16 extracts the nonce from the request CSP and applies it to its
+ * framework scripts/styles during dynamic rendering. Production deliberately
+ * avoids unsafe-inline and unsafe-eval; development keeps the minimal relaxations
+ * React/Next need for debugging and HMR.
  */
-export function buildCsp(): string {
-  return [
+export function buildCsp(nonce: string): string {
+  const isDev = process.env.NODE_ENV === 'development';
+  const directives = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-    `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''}`,
+    `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com${isDev ? " 'unsafe-inline'" : ''}`,
     `font-src 'self' data: https://fonts.gstatic.com https://frontend-cdn.perplexity.ai`,
     `img-src 'self' data: blob: ${SUPABASE_HOSTS}`,
-    `connect-src 'self' ${SUPABASE_HOSTS} ${SENTRY_INGEST}`,
+    `connect-src 'self' ${SUPABASE_HOSTS} ${SENTRY_INGEST}${isDev ? ' ws: http://localhost:* http://127.0.0.1:*' : ''}`,
+    "object-src 'none'",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-  ].join('; ');
+  ];
+
+  if (!isDev) {
+    directives.push('upgrade-insecure-requests');
+  }
+
+  return directives.join('; ');
 }
 
-/** The standard security headers applied to every response. */
-export const SECURITY_HEADERS: Array<{ key: string; value: string }> = [
-  { key: 'Content-Security-Policy', value: buildCsp() },
+/** Security headers that do not require per-request values. */
+export const STATIC_SECURITY_HEADERS: Array<{ key: string; value: string }> = [
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()' },
 ];
 
 /**
@@ -59,7 +69,7 @@ export function getNextConfigHeaders() {
   return [
     {
       source: '/:path*',
-      headers: SECURITY_HEADERS,
+      headers: STATIC_SECURITY_HEADERS,
     },
   ];
 }

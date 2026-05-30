@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nextjs';
+import { beforeSend, beforeSendTransaction } from '@/lib/sentry/scrub';
 
 const SENTRY_DSN =
   process.env.NEXT_PUBLIC_SENTRY_DSN ??
@@ -8,6 +9,8 @@ Sentry.init({
   dsn: SENTRY_DSN,
   environment: process.env.NODE_ENV ?? 'development',
   sendDefaultPii: false,
+  beforeSend,
+  beforeSendTransaction,
   tracesSampleRate: process.env.NODE_ENV === 'development' ? 1.0 : 0.1,
   enableLogs: true,
   replaysSessionSampleRate: 0.1,

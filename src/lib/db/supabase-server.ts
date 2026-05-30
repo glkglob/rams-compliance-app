@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { getSupabaseEnv } from "@/lib/config/env";
+import { ensureRequestContext, setRequestUserId } from "@/lib/request-context";
 
 /**
  * Safe factory for Server Components / Route Handlers.
@@ -26,9 +27,11 @@ export async function createServerSupabase() {
   }
 
   const cookieStore = await cookies();
+  const headerStore = await headers();
+  ensureRequestContext(headerStore);
   const { supabaseUrl, supabaseKey } = getSupabaseEnv();
 
-  return createServerClient(supabaseUrl, supabaseKey, {
+  const supabase = createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -44,4 +47,18 @@ export async function createServerSupabase() {
       },
     },
   });
+
+  type GetUser = typeof supabase.auth.getUser;
+  const originalGetUser: GetUser = supabase.auth.getUser.bind(supabase.auth);
+  const wrappedGetUser: GetUser = async (...args: Parameters<GetUser>) => {
+    const result = await originalGetUser(...args);
+    const userId = result.data.user?.id;
+    if (userId) {
+      setRequestUserId(userId);
+    }
+    return result;
+  };
+  supabase.auth.getUser = wrappedGetUser;
+
+  return supabase;
 }

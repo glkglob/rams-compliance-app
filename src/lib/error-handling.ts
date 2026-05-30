@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 
 import { logger } from '@/lib/logging';
+import { attachRequestIdHeader } from '@/lib/request-context';
 
 export class AppError extends Error {
   constructor(
@@ -44,6 +45,27 @@ export interface APIErrorResponse {
   details?: unknown;
 }
 
+export function internalServerErrorResponse(): NextResponse<APIErrorResponse> {
+  return attachRequestIdHeader(NextResponse.json(
+    {
+      error: 'Internal server error',
+      code: 'INTERNAL_ERROR',
+    },
+    { status: 500 }
+  ));
+}
+
+export function validationErrorResponse(details: unknown): NextResponse<APIErrorResponse> {
+  return attachRequestIdHeader(NextResponse.json(
+    {
+      error: 'Validation failed',
+      code: 'VALIDATION_ERROR',
+      details,
+    },
+    { status: 400 }
+  ));
+}
+
 export function handleAPIError(error: unknown): NextResponse<APIErrorResponse> {
   logger.error('API error', {
     error: error instanceof Error ? error.message : String(error),
@@ -51,14 +73,18 @@ export function handleAPIError(error: unknown): NextResponse<APIErrorResponse> {
   });
 
   if (error instanceof AppError) {
-    return NextResponse.json(
+    if (error.statusCode >= 500) {
+      return internalServerErrorResponse();
+    }
+
+    return attachRequestIdHeader(NextResponse.json(
       { error: error.message, code: error.code },
       { status: error.statusCode }
-    );
+    ));
   }
 
   if (error instanceof ZodError) {
-    return NextResponse.json(
+    return attachRequestIdHeader(NextResponse.json(
       {
         error: 'Validation failed',
         code: 'VALIDATION_ERROR',
@@ -68,14 +94,8 @@ export function handleAPIError(error: unknown): NextResponse<APIErrorResponse> {
         })),
       },
       { status: 400 }
-    );
+    ));
   }
 
-  return NextResponse.json(
-    {
-      error: 'Internal server error',
-      code: 'INTERNAL_ERROR',
-    },
-    { status: 500 }
-  );
+  return internalServerErrorResponse();
 }

@@ -9,6 +9,7 @@ import { generateEmbeddings } from '@/lib/ai/embeddings';
 import { extractRequirements } from '@/lib/ai/agents/requirement-extraction-agent';
 import { logger } from '@/lib/logging';
 import type { DocumentProcessingPayload } from '@/lib/jobs/document-queue';
+import { withRequestContext } from '@/lib/request-context';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -67,7 +68,7 @@ async function authorize(request: Request, rawBody: string): Promise<NextRespons
   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 }
 
-export async function POST(request: Request) {
+async function postProcessDocument(request: Request) {
   const rawBody = await request.text();
 
   const unauthorized = await authorize(request, rawBody);
@@ -351,6 +352,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Processing failed' }, { status: 500 });
   }
 }
+
+export const POST = withRequestContext(postProcessDocument, '/api/process-document');
 
 async function recordProcessingFailure(
   supabase: SupabaseAdminClient,

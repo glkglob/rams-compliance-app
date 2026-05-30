@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { logger } from "@/lib/logging";
-import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
+import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from "@/lib/error-handling";
 
 type DocumentRouteContext = {
   params: Promise<{ documentId: string }>;
@@ -46,7 +46,8 @@ export async function DELETE(_request: Request, { params }: DocumentRouteContext
       .eq("id", documentId);
 
     if (deleteError) {
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+      logger.error("Failed to delete compliance document", { error: deleteError.message, documentId });
+      return internalServerErrorResponse();
     }
 
     // Use centralized audit helper (fire-and-forget)

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
-import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
+import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from "@/lib/error-handling";
 import { sendEmail } from "@/lib/email/resend";
+import { logger } from "@/lib/logging";
 
 type Context = { params: Promise<{ ramsId: string }> };
 
@@ -69,7 +70,8 @@ export async function POST(_request: Request, { params }: Context) {
     );
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 500 });
+      logger.error("Failed to send RAMS email", { ramsId, error: result.error });
+      return internalServerErrorResponse();
     }
 
     await supabase

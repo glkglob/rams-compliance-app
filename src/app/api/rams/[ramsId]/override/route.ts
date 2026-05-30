@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { OVERRIDE_ALLOWED_ROLES } from "@/lib/auth/roles";
 import { createServerSupabase } from "@/lib/db/supabase-server";
-import { handleAPIError, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
+import { handleAPIError, UnauthorizedError, ForbiddenError, validationErrorResponse } from "@/lib/error-handling";
 import { logger } from "@/lib/logging";
 import { z } from "zod";
 
@@ -43,7 +43,7 @@ export async function POST(request: Request, { params }: Context) {
     const body = await request.json();
     const parsed = overrideSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues }, { status: 400 });
+      return validationErrorResponse(parsed.error.issues);
     }
 
     const { decision, reason } = parsed.data;
