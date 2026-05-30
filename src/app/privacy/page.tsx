@@ -136,11 +136,13 @@ export default function PrivacyPolicyPage() {
             <ul className="list-disc pl-6 space-y-1">
               <li>To authenticate users and manage access control</li>
               <li>To enable project collaboration and role-based permissions</li>
-              <li>To extract compliance requirements and automatically review RAMS documents using AI</li>
-              <li>To generate review decisions, explanations, and draft emails to subcontractors</li>
+              <li>To securely store and process uploaded documents for project management and access control</li>
               <li>To maintain a tamper-evident audit log for regulatory and dispute purposes</li>
-              <li>To improve the accuracy and safety of the compliance review system</li>
             </ul>
+            <p className="mt-4 text-sm text-muted-foreground">
+              AI-assisted document review and automated notifications are planned features for future
+              releases.
+            </p>
           </section>
 
           {/* Data sharing */}
