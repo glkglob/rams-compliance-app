@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
+import { getNextConfigHeaders } from '@/lib/security-headers';
 
 const nextConfig: NextConfig = {
   // Critical for Railway/Nixpacks: Prevents webpack from trying to bundle native or complex Node modules.
@@ -9,9 +10,13 @@ const nextConfig: NextConfig = {
   // Enables minimal standalone output for Docker/Railway deploys (much smaller images, faster cold starts).
   output: 'standalone',
 
-  // Security headers (CSP, HSTS, etc.) are now set per-request by
-  // src/proxy.ts so that a fresh nonce can be injected into each response.
-  // See proxy.ts for the full CSP policy.
+  // Security headers for page routes and static assets.
+  // IMPORTANT: Route Handlers (/api/*) do NOT reliably receive these.
+  // See middleware.ts for the cross-cutting implementation that also covers
+  // all API responses + injects x-request-id for observability.
+  async headers() {
+    return getNextConfigHeaders();
+  },
 };
 
 export default withSentryConfig(nextConfig, {

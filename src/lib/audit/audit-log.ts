@@ -2,26 +2,30 @@ import { createServerSupabase } from "@/lib/db/supabase-server";
 import { logger } from "@/lib/logging";
 
 /**
- * Actions whose audit records are security-critical: a failure to persist them
- * is surfaced as an error to the caller so it can decide whether to abort.
+ * Actions that represent highly sensitive, irreversible, or compliance-critical operations.
+ * Failures to record these must be treated as serious incidents (not silently swallowed).
+ *
+ * IMPORTANT: Keep this list in sync with actual strings passed to createAuditLog()
+ * across the codebase (see rg "createAuditLog\(" results).
  */
-const CRITICAL_ACTIONS = new Set([
-  'DELETE_ACCOUNT',
+const CRITICAL_ACTIONS = new Set<string>([
+  // Account lifecycle (GDPR / right to erasure)
+  'SOFT_DELETE_ACCOUNT',
+  'HARD_DELETE_ACCOUNT',
+
+  // Manual override of automated AI compliance decisions
+  'OVERRIDE_RAMS_REVIEW',
+
+  // Destructive / high-privilege operations
   'DELETE_PROJECT',
+  'DELETE_COMPLIANCE_DOCUMENT',
   'REMOVE_PROJECT_MEMBER',
-  'MANUAL_OVERRIDE',
 ]);
 
-/**
- * Persist an audit-log row.
- *
- * - **critical** actions (`CRITICAL_ACTIONS`): the function throws on failure
- *   so the caller can roll back or surface the problem.
- * - **best-effort** actions (everything else): failures are logged but
- *   swallowed so they never block the happy path.
- *
- * Callers can also override the classification with `options.critical`.
- */
+export function isCriticalAuditAction(action: string): boolean {
+  return CRITICAL_ACTIONS.has(action);
+}
+
 export async function createAuditLog(
   action: string,
   entityType: string,
@@ -29,7 +33,6 @@ export async function createAuditLog(
   options?: {
     userId?: string;
     details?: Record<string, unknown>;
-    critical?: boolean;
   }
 ) {
   const supabase = await createServerSupabase();
@@ -43,12 +46,37 @@ export async function createAuditLog(
   });
 
   if (error) {
-    const isCritical = options?.critical ?? CRITICAL_ACTIONS.has(action);
+    const isCritical = CRITICAL_ACTIONS.has(action);
+
+    // Supabase/PostgREST errors are objects; String(error) produces "[object Object]".
+    // Extract the useful fields for observability.
+    const errorInfo =
+      error && typeof error === 'object'
+        ? {
+            message: (error as any).message,
+            code: (error as any).code,
+            details: (error as any).details,
+            hint: (error as any).hint,
+          }
+        : { message: String(error) };
+
+    logger.error(
+      isCritical ? `CRITICAL AUDIT LOG FAILURE: ${action}` : 'Failed to create audit log',
+      {
+        error: errorInfo,
+        action,
+        entityType,
+        entityId,
+        isCritical,
+      }
+    );
+
+    // For critical actions we must not silently swallow the failure.
+    // Throwing makes the sensitive operation visibly fail (or surface in the caller's error handler)
+    // rather than completing an unaudited destructive/override action.
     if (isCritical) {
-      logger.error("CRITICAL audit log write failed", { error: String(error), action, entityType, entityId });
-      throw new Error(`Critical audit log failed for ${action}: ${String(error)}`);
+      throw new Error(`Failed to record critical audit log for action "${action}"`);
     }
-    logger.warn("Best-effort audit log write failed", { error: String(error), action, entityType, entityId });
   }
 }
 
@@ -76,7 +104,11 @@ export async function getAuditLogs(
   const { data, error } = await query;
 
   if (error) {
-    logger.error("Failed to fetch audit logs", { error: String(error) });
+    const errorInfo =
+      error && typeof error === 'object'
+        ? { message: (error as any).message, code: (error as any).code }
+        : { message: String(error) };
+    logger.error("Failed to fetch audit logs", { error: errorInfo });
     return [];
   }
 
