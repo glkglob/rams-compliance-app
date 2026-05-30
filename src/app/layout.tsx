@@ -11,7 +11,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'RAMS Compliance Review',
-  description: 'AI-powered RAMS document compliance review system',
+  description:
+    'A secure, project-centric compliance workspace with role-based access and audit logging — built to support AI-assisted RAMS review in upcoming phases.',
 };
 
 // Lazy-import so a module-level crash in supabase-server never
@@ -47,8 +48,8 @@ export default async function RootLayout({
           <footer className="border-t bg-muted/30 py-6 text-sm text-muted-foreground">
             <div className="container mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 sm:flex-row">
               <div>
-                © {new Date().getFullYear()} RAMS Compliance Review. AI-assisted decision support
-                tool.
+                © {new Date().getFullYear()} RAMS Compliance Review. A secure, project-centric
+                compliance workspace.
               </div>
               <div className="flex gap-6">
                 <a href="/privacy" className="hover:text-foreground transition-colors">
