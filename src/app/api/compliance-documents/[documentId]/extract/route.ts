@@ -43,6 +43,24 @@ export async function POST(_request: Request, { params }: ExtractRouteContext) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Idempotency: if a job is already queued or running for this document, don't
+    // create a duplicate — just report the in-flight job back to the caller.
+    const { data: activeJob } = await supabase
+      .from("document_processing_jobs")
+      .select("id, status")
+      .eq("document_id", documentId)
+      .in("status", ["pending", "processing"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (activeJob) {
+      return NextResponse.json(
+        { ...document, extraction_status: "pending", job_id: activeJob.id, job_status: activeJob.status },
+        { status: 202 }
+      );
+    }
+
     await supabase
       .from("compliance_documents")
       .update({ extraction_status: "pending" })
