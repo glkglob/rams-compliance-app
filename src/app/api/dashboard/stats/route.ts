@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { logger } from "@/lib/logging";
 import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 
 interface DashboardStats {
@@ -49,8 +50,12 @@ export async function GET() {
         ]);
 
       if (projectError || ramsError) {
+        logger.error("Failed to load dashboard stats", {
+          projectError: projectError?.message,
+          ramsError: ramsError?.message,
+        });
         return NextResponse.json(
-          { error: projectError?.message ?? ramsError?.message ?? "Failed to load stats" },
+          { error: "Failed to load stats" },
           { status: 500 }
         );
       }
