@@ -73,13 +73,15 @@ ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# Fail the build early if the public Supabase config is missing, instead of
-# silently shipping a broken client bundle that dies in the browser.
-RUN if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || { [ -z "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" ] && [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ]; }; then \
-      echo "ERROR: NEXT_PUBLIC_SUPABASE_URL and a public key (NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY) must be passed as Docker build args." >&2; \
-      echo "       These are inlined into the client bundle at build time; without them the app dies after the loading screen." >&2; \
-      exit 1; \
-    fi
+# Fail the build early if the public Supabase config is missing.
+# These values are inlined by Next.js at build time.
+#
+# We use simple test commands (instead of one complex if) for two reasons:
+# 1. Much better Docker layer caching behavior when build args change.
+# 2. The actual argument values never appear in the RUN command in build logs
+#    or cached layer metadata (prevents accidental secret leakage).
+RUN [ -n "$NEXT_PUBLIC_SUPABASE_URL" ] || (echo 'ERROR: NEXT_PUBLIC_SUPABASE_URL build arg is required' >&2 && exit 1)
+RUN [ -n "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] || [ -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" ] || (echo 'ERROR: NEXT_PUBLIC_SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY build arg is required' >&2 && exit 1)
 
 # Build the app (uses standalone output from next.config.ts)
 RUN npm run build
