@@ -29,6 +29,13 @@ export function chunkText(
   maxChunkSize: number = 1000,
   overlap: number = 200
 ): TextChunk[] {
+  if (maxChunkSize <= 0) {
+    throw new Error('maxChunkSize must be greater than 0');
+  }
+  if (overlap < 0 || overlap >= maxChunkSize) {
+    throw new Error('overlap must be greater than or equal to 0 and smaller than maxChunkSize');
+  }
+
   const chunks: TextChunk[] = [];
   const sentences = text.match(/[^.!?]+[.!?]+/g) ?? [text];
 
