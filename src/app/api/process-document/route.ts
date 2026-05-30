@@ -182,8 +182,8 @@ export async function POST(request: Request) {
           source_document_id: req.sourceDocumentId,
           requirement_code: req.requirementCode,
           requirement_text: req.requirementText,
-          // Prefer the LLM's per-requirement category; fall back to the
-          // document-level category only when the model didn't provide one.
+          // Prefer the LLM's per-requirement category, falling back to the
+          // document-level category and finally 'other'.
           category: req.category ?? document.document_category ?? 'other',
           severity: req.severity,
           source_excerpt: req.sourceExcerpt,
