@@ -10,9 +10,10 @@ import { getSupabaseEnv } from '@/lib/config/env';
  * Every request gets a unique x-request-id header that propagates through
  * API routes, logging, and Sentry breadcrumbs for end-to-end correlation.
  *
- * A per-request CSP nonce is generated and passed via x-nonce so that
- * app/layout.tsx can apply it to <script> tags — avoiding unsafe-eval/unsafe-inline
- * while still allowing Next.js client runtime scripts to execute.
+ * A per-request CSP nonce is generated and set on both the request and the
+ * response Content-Security-Policy header. Next.js parses the nonce from the
+ * request CSP header during SSR and automatically applies it to its framework
+ * scripts, which lets us drop 'unsafe-inline' from script-src.
  */
 
 function buildCsp(nonce: string): string {
@@ -26,10 +27,14 @@ function buildCsp(nonce: string): string {
 
   return [
     "default-src 'self'",
-    // Next.js (especially with Turbopack) requires 'unsafe-inline' for some
-    // bootstrap scripts even when using nonces + strict-dynamic.
-    // We keep the nonce for future hardening.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-inline'${devEval} https:`,
+    // 'unsafe-inline' removed: the per-request nonce + 'strict-dynamic' authorise
+    // Next.js' own scripts (Next applies the nonce automatically), and
+    // 'strict-dynamic' lets those trusted scripts load their dependencies.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${devEval} https:`,
+    `script-src-elem 'self' 'nonce-${nonce}' 'strict-dynamic'${devEval} https:`,
+    // style-src keeps 'unsafe-inline' (no nonce): the app relies on inline
+    // style= attributes (e.g. progress bars, global-error page) which a nonce
+    // cannot cover, and adding a nonce here would disable 'unsafe-inline'.
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
     // Next.js self-hosts optimized fonts under /_next/static/media/
     `font-src 'self' data: https://fonts.gstatic.com https://frontend-cdn.perplexity.ai`,
@@ -38,6 +43,7 @@ function buildCsp(nonce: string): string {
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
+    'upgrade-insecure-requests',
   ].join('; ');
 }
 
@@ -59,6 +65,9 @@ export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-request-id', requestId);
   requestHeaders.set('x-nonce', nonce);
+  // Next.js reads the nonce from the request CSP header to auto-nonce its
+  // framework scripts during server rendering.
+  requestHeaders.set('Content-Security-Policy', csp);
 
   const supabaseResponse = NextResponse.next({
     request: { headers: requestHeaders },
