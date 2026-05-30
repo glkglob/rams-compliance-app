@@ -3,6 +3,32 @@ import { extractText } from '@/lib/extractText';
 
 export const runtime = 'nodejs'; // Required for pdf-parse / mammoth
 
+// --- Simple in-memory IP rate limit for this unauthenticated demo endpoint ---
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 10;
+
+const ipHits = new Map<string, { count: number; resetAt: number }>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = ipHits.get(ip);
+  if (!entry || now >= entry.resetAt) {
+    ipHits.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_LIMIT_MAX_REQUESTS;
+}
+
+// Periodically evict stale entries to prevent unbounded memory growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of ipHits) {
+    if (now >= entry.resetAt) ipHits.delete(ip);
+  }
+}, RATE_LIMIT_WINDOW_MS).unref();
+// --- End rate limit ---
+
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB demo limit
 const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt'];
 const ALLOWED_MIME_TYPES = [
@@ -29,6 +55,19 @@ function isSupportedFile(file: File): boolean {
 
 export async function POST(request: Request) {
   try {
+    // Rate limit by IP
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      request.headers.get('x-real-ip') ||
+      'unknown';
+
+    if (isRateLimited(ip)) {
+      return NextResponse.json(
+        { error: 'Too many upload requests. Please try again in a minute.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
 

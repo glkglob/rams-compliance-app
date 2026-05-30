@@ -18,8 +18,14 @@ export function getSupabaseEnv() {
     );
   }
 
-  // Helpful log + warning when running locally
-  if (process.env.NODE_ENV !== 'production' && typeof window === 'undefined') {
+  // Helpful log + warning when running locally.
+  // Suppressed during E2E runs (placeholder URLs would spam the test output)
+  // and during static-prerender phases.
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.E2E !== 'true' &&
+    typeof window === 'undefined'
+  ) {
     const isLocal = supabaseUrl.includes('127.0.0.1') || supabaseUrl.includes('localhost');
 
     if (isLocal) {

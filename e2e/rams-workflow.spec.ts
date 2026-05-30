@@ -1,26 +1,35 @@
 import { test, expect } from '@playwright/test';
 
-// These tests exercise authenticated flows and need a working Supabase backend
-// (a real project or a local `supabase start` instance). When the E2E run only
-// has placeholder env vars, login can never succeed, so the whole suite is
-// skipped. Provide a non-placeholder NEXT_PUBLIC_SUPABASE_URL in
-// .env.test.local (or the environment) to enable these tests.
+/**
+ * Authenticated workflow tests.
+ *
+ * These tests require a real Supabase instance reachable from the dev server
+ * (so a real user can be created and signed in). When NEXT_PUBLIC_SUPABASE_URL
+ * is the placeholder configured in playwright.config.ts, we skip the entire
+ * suite — login simply cannot succeed against a non-existent backend.
+ *
+ * To run these locally:
+ *   1. `npm run supabase:start`  (or set NEXT_PUBLIC_SUPABASE_URL to a real instance)
+ *   2. Create / seed a test user (test@example.com / password123)
+ *   3. `npm run test:e2e`
+ */
+
+const PLACEHOLDER_HOSTS = ['placeholder.supabase.co'];
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
-const hasRealSupabase =
-  supabaseUrl.length > 0 &&
-  supabaseAnonKey.length > 0 &&
-  !supabaseUrl.includes('placeholder') &&
-  !supabaseAnonKey.includes('placeholder');
+const isPlaceholder =
+  !supabaseUrl ||
+  PLACEHOLDER_HOSTS.some((host) => supabaseUrl.includes(host));
 
 test.describe('RAMS Compliance Workflow', () => {
   test.skip(
-    !hasRealSupabase,
-    'Requires a real or local Supabase instance (set a non-placeholder NEXT_PUBLIC_SUPABASE_URL in .env.test.local or run `npm run supabase:start`).',
+    isPlaceholder,
+    'Skipping authenticated E2E suite: NEXT_PUBLIC_SUPABASE_URL is a placeholder. ' +
+      'Set real values in .env.test.local (see .env.test.local.example) and re-run.',
   );
 
   test.beforeEach(async ({ page }) => {
     await page.goto('/login');
+    // Login form inputs are keyed by id, not name (see src/app/login/page.tsx).
     await page.fill('#email', 'test@example.com');
     await page.fill('#password', 'password123');
     await page.click('button[type="submit"]');
@@ -30,8 +39,8 @@ test.describe('RAMS Compliance Workflow', () => {
   test('should create a project and upload documents', async ({ page }) => {
     await page.click('text=View All Projects');
     await page.click('text=Create New Project');
-    await page.fill('[name="name"]', 'E2E Test Project');
-    await page.fill('[name="clientName"]', 'Test Client');
+    await page.fill('#name', 'E2E Test Project');
+    await page.fill('#clientName', 'Test Client');
     await page.click('button[type="submit"]');
     await expect(page.getByText('E2E Test Project')).toBeVisible();
   });

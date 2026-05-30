@@ -105,7 +105,7 @@ export function DocumentUploadDemo() {
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 B';
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB'];
+    const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
@@ -121,7 +121,7 @@ export function DocumentUploadDemo() {
           </Badge>
         </CardTitle>
         <CardDescription>
-          Upload a PDF, Word (.doc/.docx), or TXT file. Text will be extracted client-side in the browser and returned for review.
+          Upload a PDF, Word (.doc/.docx), or TXT file. Text will be extracted securely on the server and returned for review.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -155,7 +155,7 @@ export function DocumentUploadDemo() {
         {selectedFile && !result && (
           <div className="flex items-center justify-between rounded-md border bg-muted/50 px-3 py-2 text-sm">
             <div className="flex items-center gap-2 min-w-0">
-              <FileText className="h-4 w-4 flex-shrink-0 text-primary" />
+              <FileText className="h-4 w-4 shrink-0 text-primary" />
               <span className="truncate font-medium">{selectedFile.name}</span>
               <span className="text-muted-foreground">({formatFileSize(selectedFile.size)})</span>
             </div>
@@ -196,7 +196,7 @@ export function DocumentUploadDemo() {
         {error && (
           <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
             <div className="flex items-start gap-2 text-destructive">
-              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
               <div>
                 <p className="font-medium">Upload failed</p>
                 <p className="text-destructive/90 mt-0.5">{error}</p>
@@ -250,7 +250,7 @@ export function DocumentUploadDemo() {
                 </Button>
               </div>
               <div className="relative">
-                <pre className="max-h-[320px] overflow-auto rounded-md border bg-background p-4 text-xs leading-relaxed font-mono whitespace-pre-wrap">
+                <pre className="max-h-80 overflow-auto rounded-md border bg-background p-4 text-xs leading-relaxed font-mono whitespace-pre-wrap">
                   {result.extractedText || <span className="text-muted-foreground italic">No text extracted.</span>}
                 </pre>
               </div>

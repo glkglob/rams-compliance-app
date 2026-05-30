@@ -175,7 +175,7 @@ export default function Home() {
           </div>
 
           {/* Remaining coming soon features */}
-          {comingSoon.slice(1).map(({ icon: Icon, title, description }) => (
+          {comingSoon.map(({ icon: Icon, title, description }) => (
             <Card key={title} className="border-dashed bg-muted/30">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between gap-2 text-base">
