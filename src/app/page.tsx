@@ -7,7 +7,6 @@ import {
   Gauge,
   ShieldCheck,
   Sparkles,
-  UploadCloud,
   Users,
 } from "lucide-react";
 
@@ -19,6 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { DocumentUploadDemo } from "@/components/landing/document-upload-demo";
 
 const availableToday = [
   {
@@ -48,12 +48,6 @@ const availableToday = [
 ];
 
 const comingSoon = [
-  {
-    icon: UploadCloud,
-    title: "Document upload & extraction",
-    description:
-      "Upload RAMS and supporting documents and have their content extracted ready for review.",
-  },
   {
     icon: Sparkles,
     title: "AI-assisted RAMS review",
@@ -175,7 +169,13 @@ export default function Home() {
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {comingSoon.map(({ icon: Icon, title, description }) => (
+          {/* Document Upload & Extraction - now a live interactive demo */}
+          <div className="lg:col-span-1">
+            <DocumentUploadDemo />
+          </div>
+
+          {/* Remaining coming soon features */}
+          {comingSoon.slice(1).map(({ icon: Icon, title, description }) => (
             <Card key={title} className="border-dashed bg-muted/30">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between gap-2 text-base">

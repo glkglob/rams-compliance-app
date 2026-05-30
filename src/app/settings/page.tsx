@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/db/supabase-client';
 
 // Force dynamic rendering — requires runtime auth + Supabase.
 export const dynamic = 'force-dynamic';
@@ -34,25 +35,37 @@ export default function SettingsPage() {
   useEffect(() => {
     async function loadProfile() {
       try {
-        // We can reuse the dashboard stats or projects endpoint to verify auth
-        const res = await fetch('/api/dashboard/stats');
-        if (res.status === 401) {
+        const supabase = createClient();
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError || !user) {
           router.push('/login');
           return;
         }
 
-        // Fetch profile directly from Supabase via a lightweight call
-        // For simplicity we'll call /api/projects and use the first response if needed,
-        // but better to add a lightweight /api/me endpoint in future.
-        // As a pragmatic approach, we'll just show a basic view and rely on the
-        // authenticated session for the delete call.
+        // Fetch additional profile details (role, full_name) if available.
+        // The email from auth.getUser() is the source of truth for the authenticated user.
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('full_name, role, email')
+          .eq('id', user.id)
+          .single();
+
         setProfile({
-          email: 'your-email@example.com',
+          email: user.email || profileData?.email || '—',
+          full_name: profileData?.full_name ?? null,
+          role: profileData?.role || 'user',
+        });
+      } catch {
+        // Non-fatal; show fallback
+        setProfile({
+          email: '—',
           full_name: null,
           role: 'user',
         });
-      } catch {
-        // Non-fatal for this page
       } finally {
         setLoading(false);
       }

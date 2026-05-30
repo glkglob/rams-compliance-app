@@ -18,8 +18,17 @@ export function createClient() {
       auth: {
         signUp: async () => ({ data: { user: null, session: null }, error: null }),
         signInWithPassword: async () => ({ data: { user: null, session: null }, error: null }),
+        getUser: async () => ({ data: { user: null }, error: null }),
+        getSession: async () => ({ data: { session: null }, error: null }),
         // Add more stubs here if other client components start using auth methods
       },
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            single: async () => ({ data: null, error: null }),
+          }),
+        }),
+      }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Build-phase no-op stub; never executed at runtime.
     } as any;
   }

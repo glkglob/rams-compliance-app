@@ -43,7 +43,12 @@ vi.mock('@/lib/db/supabase-with-timeout', () => ({
 }));
 
 vi.mock('@/lib/auth/roles', () => ({
-  hasPermission: vi.fn(() => true),
+  hasPermission: vi.fn((role: string, permission: string) => {
+    if (permission === 'create:projects') {
+      return role === 'admin' || role === 'project_manager' || role === 'user' || role === 'viewer';
+    }
+    return true;
+  }),
 }));
 
 describe('Projects API', () => {

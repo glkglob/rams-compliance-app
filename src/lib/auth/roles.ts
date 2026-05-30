@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "project_manager" | "reviewer" | "viewer";
+export type UserRole = "admin" | "project_manager" | "reviewer" | "viewer" | "user";
 
 export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   admin: [
@@ -40,7 +40,20 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "view:documents",
     "view:rams",
   ],
-  viewer: ["view:projects", "view:documents", "view:rams"],
+  viewer: [
+    "create:projects",
+    "view:projects",
+    "view:documents",
+    "view:rams",
+    "submit:rams",
+  ],
+  user: [
+    "create:projects",
+    "view:projects",
+    "view:documents",
+    "view:rams",
+    "submit:rams",
+  ],
 };
 
 export function hasPermission(role: UserRole, permission: string) {

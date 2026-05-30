@@ -27,14 +27,18 @@ export async function POST(request: Request) {
       .single();
 
     if (profileError || !profile) {
-      return NextResponse.json({ error: "Profile not found" }, { status: 403 });
+      logger.warn("Profile not found for project creation", { userId: user.id });
+      throw new ForbiddenError("Profile not found. Unable to verify permissions for project creation.");
     }
 
     // Use the already-fetched role directly instead of creating a second
     // Supabase client inside hasGlobalPermission.
     if (!hasPermission(profile.role, "create:projects")) {
       logger.warn("Project creation denied", { role: profile.role, userId: user.id });
-      throw new ForbiddenError();
+      throw new ForbiddenError(
+        `Your role '${profile.role}' does not have permission to create projects. ` +
+        "Please contact an administrator to be assigned the project_manager or admin role."
+      );
     }
 
     const body = await request.json();

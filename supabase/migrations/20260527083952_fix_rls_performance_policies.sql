@@ -23,20 +23,15 @@ CREATE POLICY "Users can update own profile" ON public.profiles
   USING ((select auth.uid()) = id)
   WITH CHECK ((select auth.uid()) = id);
 
--- 2. projects ─ "Managers can create projects"
+-- 2. projects ─ "Authenticated users can create their own projects"
+-- Regular authenticated users (including role 'user' and default 'viewer') may create
+-- projects. Ownership is enforced by created_by = auth.uid(). More privileged roles
+-- (admin/project_manager) are still used for management policies elsewhere.
 DROP POLICY IF EXISTS "Managers can create projects" ON public.projects;
 
-CREATE POLICY "Managers can create projects" ON public.projects
+CREATE POLICY "Authenticated users can create their own projects" ON public.projects
   FOR INSERT TO authenticated
-  WITH CHECK (
-    created_by = (select auth.uid())
-    AND EXISTS (
-      SELECT 1
-      FROM public.profiles
-      WHERE id = (select auth.uid())
-        AND role IN ('admin', 'project_manager')
-    )
-  );
+  WITH CHECK (created_by = (select auth.uid()));
 
 -- 3. project_members ─ "Managers can insert project memberships"
 DROP POLICY IF EXISTS "Managers can insert project memberships" ON public.project_members;
