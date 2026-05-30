@@ -78,7 +78,8 @@ async function getRelevantRequirements(
     }
 
     // Get unique source document IDs from the relevant chunks
-    const documentIds = [...new Set((chunks as any[]).map((c) => c.document_id).filter(Boolean))];
+    const typedChunks = chunks as Array<{ document_id?: string }>;
+    const documentIds = [...new Set(typedChunks.map((c) => c.document_id).filter(Boolean))];
 
     if (documentIds.length === 0) return [];
 

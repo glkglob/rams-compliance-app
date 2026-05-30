@@ -35,7 +35,7 @@ export function GapList({ checks }: GapListProps) {
     return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
   };
 
-  const getSeverityVariant = (severity: string) => {
+  const getSeverityVariant = (severity: string): 'destructive' | 'warning' | 'secondary' => {
     if (severity === 'critical') return 'destructive';
     if (severity === 'major') return 'warning';
     return 'secondary';
@@ -63,7 +63,7 @@ export function GapList({ checks }: GapListProps) {
                   <span className="font-medium capitalize">
                     {check.status.replace('_', ' ')}
                   </span>
-                  <Badge variant={getSeverityVariant(check.severity) as any}>
+                  <Badge variant={getSeverityVariant(check.severity)}>
                     {check.severity}
                   </Badge>
                 </div>

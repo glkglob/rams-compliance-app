@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { 
   RefreshCw, FileText, BarChart3, AlertTriangle, CheckCircle 
@@ -13,6 +13,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReviewResults } from '@/components/rams/review-results';
 import { GapList } from '@/components/rams/gap-list';
 import { GapAnalysisSummary } from '@/components/rams/gap-analysis-summary';
+
+interface ReviewCheck {
+  id?: string;
+  status: string;
+  severity: string;
+  explanation?: string | null;
+  rams_evidence?: string | null;
+  score?: number | null;
+}
 
 interface RAMSData {
   id: string;
@@ -30,7 +39,7 @@ interface RAMSData {
     decision_explanation?: string | null;
     email_generated?: boolean;
     email_sent?: boolean;
-    review_checks?: any[];
+    review_checks?: ReviewCheck[];
   }>;
 }
 
@@ -60,8 +69,12 @@ export default function RAMSDetailPage() {
     }
   }, [params.ramsId]);
 
+  const loadedRef = useRef(false);
   useEffect(() => {
-    void loadRAMS();
+    if (!loadedRef.current) {
+      loadedRef.current = true;
+      void loadRAMS();
+    }
   }, [loadRAMS]);
 
   const handleRunAnalysis = async () => {

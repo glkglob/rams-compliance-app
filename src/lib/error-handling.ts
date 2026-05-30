@@ -71,10 +71,9 @@ export function handleAPIError(error: unknown): NextResponse<APIErrorResponse> {
     );
   }
 
-  const message = error instanceof Error ? error.message : 'Internal server error';
   return NextResponse.json(
     {
-      error: process.env.NODE_ENV === 'development' ? message : 'Internal server error',
+      error: 'Internal server error',
       code: 'INTERNAL_ERROR',
     },
     { status: 500 }

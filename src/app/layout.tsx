@@ -28,10 +28,10 @@ async function getSessionUser() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    return { userId: user?.id, userEmail: user?.email };
+    return { userId: user?.id };
   } catch {
     // Non-fatal — layout still renders, Sentry just won't have user context.
-    return { userId: undefined, userEmail: undefined };
+    return { userId: undefined };
   }
 }
 
@@ -40,12 +40,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { userId, userEmail } = await getSessionUser();
+  const { userId } = await getSessionUser();
 
   return (
     <html lang="en" className="h-full">
       <body className="font-sans min-h-full bg-background text-foreground antialiased">
-        <SentryUserContext userId={userId} userEmail={userEmail} />
+        <SentryUserContext userId={userId} />
         <div className="flex min-h-screen flex-col">
           <AppHeader />
           <main className="flex-1 bg-background">{children}</main>

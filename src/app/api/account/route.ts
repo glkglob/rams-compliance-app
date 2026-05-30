@@ -175,7 +175,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json(
       {
         error: 'Account deletion failed',
-        message: error instanceof Error ? error.message : 'An unexpected error occurred',
+        message: 'An unexpected error occurred',
       },
       { status: 500 },
     );
