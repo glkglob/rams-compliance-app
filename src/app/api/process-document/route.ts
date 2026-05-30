@@ -97,6 +97,34 @@ export async function POST(request: Request) {
     if (docError || !document) {
       throw new Error(`Document not found: ${docError?.message ?? documentId}`);
     }
+
+    // Ownership / payload validation: the projectId in the QStash payload must match
+    // the document's actual project. This is a non-retriable client error.
+    if (document.project_id !== projectId) {
+      logger.warn('Document processing payload projectId mismatch', {
+        documentId,
+        jobId,
+        payloadProjectId: projectId,
+        documentProjectId: document.project_id,
+      });
+
+      await supabase
+        .from('document_processing_jobs')
+        .update({
+          status: 'failed',
+          completed_at: new Date().toISOString(),
+          error_message: 'Payload projectId does not match document project_id',
+        })
+        .eq('id', jobId);
+
+      await supabase
+        .from('compliance_documents')
+        .update({ extraction_status: 'failed' })
+        .eq('id', documentId);
+
+      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+    }
+
     if (!document.storage_path) {
       throw new Error('Document has no storage_path');
     }

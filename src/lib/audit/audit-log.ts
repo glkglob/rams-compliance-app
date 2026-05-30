@@ -48,10 +48,22 @@ export async function createAuditLog(
   if (error) {
     const isCritical = CRITICAL_ACTIONS.has(action);
 
+    // Supabase/PostgREST errors are objects; String(error) produces "[object Object]".
+    // Extract the useful fields for observability.
+    const errorInfo =
+      error && typeof error === 'object'
+        ? {
+            message: (error as any).message,
+            code: (error as any).code,
+            details: (error as any).details,
+            hint: (error as any).hint,
+          }
+        : { message: String(error) };
+
     logger.error(
       isCritical ? `CRITICAL AUDIT LOG FAILURE: ${action}` : 'Failed to create audit log',
       {
-        error: String(error),
+        error: errorInfo,
         action,
         entityType,
         entityId,
@@ -92,7 +104,11 @@ export async function getAuditLogs(
   const { data, error } = await query;
 
   if (error) {
-    logger.error("Failed to fetch audit logs", { error: String(error) });
+    const errorInfo =
+      error && typeof error === 'object'
+        ? { message: (error as any).message, code: (error as any).code }
+        : { message: String(error) };
+    logger.error("Failed to fetch audit logs", { error: errorInfo });
     return [];
   }
 

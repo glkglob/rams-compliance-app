@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/db/supabase-server';
+import { getSupabaseAdmin } from '@/lib/db/supabase-admin';
 import { logger } from '@/lib/logging';
 
 export async function GET() {
@@ -10,8 +10,12 @@ export async function GET() {
   // NOTE: We no longer fail the entire health check on DB errors.
   // Railway will restart containers aggressively on 5xx/503 from healthchecks.
   // We report 'degraded' but still return 200 so the app isn't killed during transient DB issues or cold starts.
+  //
+  // Use the service-role admin client here (not the anon client). Health probes
+  // from Railway / load balancers do not carry user auth cookies, so an RLS-protected
+  // query via createServerSupabase() would fail even when the database is fully reachable.
   try {
-    const supabase = await createServerSupabase();
+    const supabase = getSupabaseAdmin();
     const { error } = await supabase.from('profiles').select('id').limit(1);
     checks.database = error ? 'error' : 'ok';
     if (error) {
