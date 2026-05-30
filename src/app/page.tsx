@@ -6,9 +6,9 @@ import {
   Clock,
   Eye,
   FileBox,
+  FileUp,
   FolderOpen,
   Gauge,
-  Key,
   Lock,
   Monitor,
   Shield,
@@ -175,7 +175,7 @@ export default function Home() {
 
               {[
                 { action: "Submission created", actor: "J. Smith", time: "09:14", dot: "bg-blue-500" },
-                { action: "Document extracted", actor: "System", time: "09:14", dot: "bg-muted-foreground/40" },
+                { action: "Document extracted", actor: "System", time: "09:14", dot: "bg-gray-300" },
                 { action: "Assigned to reviewer", actor: "M. Johnson", time: "09:16", dot: "bg-blue-500" },
                 { action: "Review notes added", actor: "M. Johnson", time: "10:02", dot: "bg-yellow-500" },
                 { action: "Override requested", actor: "M. Johnson", time: "10:05", dot: "bg-orange-500" },
@@ -340,110 +340,115 @@ export default function Home() {
 
       {/* 4. LIVE DEMO SECTION */}
       <section aria-label="See it in action" className="space-y-6">
-        <div className="flex items-center gap-2">
-          <Monitor className="h-5 w-5 text-primary" />
-          <h2 className="text-2xl font-semibold tracking-tight">See it in action</h2>
-        </div>
-        <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
-          <DocumentUploadDemo />
-
-          <div className="pointer-events-none">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <CardTitle className="text-base font-semibold">RAMS Submission — Road Works Phase 2</CardTitle>
-                  <Badge variant="warning">Pending Review</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <dl className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Submitted by</dt>
-                    <dd className="font-medium">J. Smith</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Compliance threshold</dt>
-                    <dd className="font-medium">80%</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Documents attached</dt>
-                    <dd className="font-medium">3 files</dd>
-                  </div>
-                </dl>
-                <div>
-                  <label className="text-xs text-muted-foreground block mb-1">Reviewer notes</label>
-                  <textarea
-                    disabled
-                    placeholder="Enter review notes..."
-                    className="w-full rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground resize-none h-20"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" disabled className="flex-1 border-green-600 text-green-700">Approve</Button>
-                  <Button variant="outline" disabled className="flex-1 border-destructive text-destructive">Reject</Button>
-                </div>
-                <p className="text-xs text-muted-foreground text-center">Interactive mockup — full review workflow available after sign-in</p>
-              </CardContent>
-            </Card>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Monitor className="h-5 w-5 text-primary" />
+            <h2 className="text-2xl font-semibold tracking-tight">Try document extraction now</h2>
           </div>
+          <p className="text-muted-foreground">
+            Upload a PDF, Word doc, or plain text file. Text is extracted on the server and returned immediately — no sign-in required.
+          </p>
+        </div>
+        <div className="mx-auto max-w-2xl">
+          <DocumentUploadDemo />
         </div>
       </section>
 
       {/* 5. USER ROLES SECTION */}
       <section aria-label="User roles" className="space-y-6">
-        <div className="flex items-center gap-2">
-          <Users className="h-5 w-5 text-primary" />
-          <h2 className="text-2xl font-semibold tracking-tight">Built for your whole team</h2>
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Built for Construction Compliance Teams
+          </h2>
+          <p className="text-muted-foreground">
+            Find your role and see how the workspace supports your responsibilities.
+          </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card>
+          <Card className="flex flex-col">
             <CardHeader>
-              <Shield className="h-6 w-6 text-primary mb-2" />
-              <CardTitle>Project Admin</CardTitle>
-              <CardDescription>
-                Creates and configures projects, sets compliance thresholds, invites team members, and has full administrative access.
+              <Users className="h-6 w-6 text-primary mb-3" />
+              <CardTitle className="text-lg">Principal Contractor</CardTitle>
+              <CardDescription className="leading-relaxed">
+                Maintain oversight across multiple projects and review activities.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Create &amp; archive projects</li>
-                <li>• Set compliance thresholds</li>
-                <li>• Invite &amp; manage team roles</li>
-                <li>• Access full audit trail</li>
+            <CardContent className="flex-1">
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>Visibility across all active RAMS reviews</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>Approval thresholds applied consistently across every project</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>An audit trail that holds up to scrutiny</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>Delegate review responsibility without losing control</span>
+                </li>
               </ul>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="flex flex-col">
             <CardHeader>
-              <Eye className="h-6 w-6 text-primary mb-2" />
-              <CardTitle>Compliance Reviewer</CardTitle>
-              <CardDescription>
-                Reviews submitted RAMS documents, records approval or rejection decisions, and adds notes for the audit record.
+              <Shield className="h-6 w-6 text-primary mb-3" />
+              <CardTitle className="text-lg">Compliance Manager</CardTitle>
+              <CardDescription className="leading-relaxed">
+                Standardise RAMS assessment and maintain governance.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Review RAMS submissions</li>
-                <li>• Approve or reject documents</li>
-                <li>• Add review notes</li>
-                <li>• Override decisions with justification</li>
+            <CardContent className="flex-1">
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>Set consistent compliance thresholds across every project</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>Enforce a structured, repeatable review process</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>Override decisions with a documented justification</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>A complete decision history ready for any governance review</span>
+                </li>
               </ul>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="flex flex-col">
             <CardHeader>
-              <BarChart2 className="h-6 w-6 text-primary mb-2" />
-              <CardTitle>Project Manager</CardTitle>
-              <CardDescription>
-                Monitors project status, tracks compliance across submissions, and coordinates the review team.
+              <Eye className="h-6 w-6 text-primary mb-3" />
+              <CardTitle className="text-lg">Reviewer</CardTitle>
+              <CardDescription className="leading-relaxed">
+                Review submissions efficiently while preserving accountability.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• View project dashboard</li>
-                <li>• Track review progress</li>
-                <li>• Monitor compliance status</li>
-                <li>• Coordinate with reviewers</li>
+            <CardContent className="flex-1">
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>Read extracted document text without managing files</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>Record approvals, rejections, and notes in one place</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>Every decision timestamped and attributed to you</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>Flag concerns without blocking the overall workflow</span>
+                </li>
               </ul>
             </CardContent>
           </Card>
@@ -452,123 +457,182 @@ export default function Home() {
 
       {/* 6. COMING NEXT SECTION */}
       <section id="coming-next" aria-label="Roadmap" className="space-y-6">
-        <div className="flex items-center gap-3">
-          <Sparkles className="h-5 w-5 text-muted-foreground" />
-          <h2 className="text-2xl font-semibold tracking-tight">Coming Next</h2>
-          <Badge variant="outline">Roadmap</Badge>
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <Sparkles className="h-5 w-5 text-muted-foreground" />
+            <h2 className="text-2xl font-semibold tracking-tight">Coming Next</h2>
+          </div>
+          <p className="text-muted-foreground">
+            None of the features below are available yet. We will update this page as each one ships.
+          </p>
         </div>
-        <p className="text-muted-foreground">These features are in development. We will update this page as each one ships.</p>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card className="border-dashed bg-muted/30">
-            <CardHeader>
-              <div className="flex items-center justify-between mb-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+          {/* Coming Soon — closer on the roadmap */}
+          <Card className="flex flex-col border-dashed bg-muted/20">
+            <CardHeader className="flex-1">
+              <div className="mb-3 flex items-center justify-between">
+                <FileUp className="h-5 w-5 text-muted-foreground" />
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+                  Coming Soon
+                </span>
+              </div>
+              <CardTitle className="text-sm font-semibold text-foreground">
+                Document Upload &amp; Extraction
+              </CardTitle>
+              <CardDescription className="text-xs leading-relaxed">
+                Upload RAMS and supporting documents and automatically extract content for review.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          {/* Planned items */}
+          <Card className="flex flex-col border-dashed bg-muted/20">
+            <CardHeader className="flex-1">
+              <div className="mb-3 flex items-center justify-between">
                 <Sparkles className="h-5 w-5 text-muted-foreground" />
-                <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">Coming Next</span>
+                <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                  Planned
+                </span>
               </div>
-              <CardTitle className="text-base text-muted-foreground">AI-Assisted Gap Analysis</CardTitle>
-              <CardDescription>
-                AI highlights where a RAMS submission may not meet your project requirements — a reviewer always makes the final call.
+              <CardTitle className="text-sm font-semibold text-muted-foreground">
+                AI-Assisted Compliance Checking
+              </CardTitle>
+              <CardDescription className="text-xs leading-relaxed">
+                Compare extracted content against project requirements and identify potential gaps.
               </CardDescription>
             </CardHeader>
           </Card>
-          <Card className="border-dashed bg-muted/30">
-            <CardHeader>
-              <div className="flex items-center justify-between mb-2">
+
+          <Card className="flex flex-col border-dashed bg-muted/20">
+            <CardHeader className="flex-1">
+              <div className="mb-3 flex items-center justify-between">
                 <Gauge className="h-5 w-5 text-muted-foreground" />
-                <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">Coming Next</span>
+                <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                  Planned
+                </span>
               </div>
-              <CardTitle className="text-base text-muted-foreground">Automated Compliance Scoring</CardTitle>
-              <CardDescription>
-                Score each submission against your threshold and track compliance status over time without manual tallying.
+              <CardTitle className="text-sm font-semibold text-muted-foreground">
+                Compliance Scoring Engine
+              </CardTitle>
+              <CardDescription className="text-xs leading-relaxed">
+                Generate review scores and structured recommendations for human approval.
               </CardDescription>
             </CardHeader>
           </Card>
-          <Card className="border-dashed bg-muted/30">
-            <CardHeader>
-              <div className="flex items-center justify-between mb-2">
+
+          <Card className="flex flex-col border-dashed bg-muted/20">
+            <CardHeader className="flex-1">
+              <div className="mb-3 flex items-center justify-between">
                 <FileBox className="h-5 w-5 text-muted-foreground" />
-                <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">Planned</span>
+                <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                  Planned
+                </span>
               </div>
-              <CardTitle className="text-base text-muted-foreground">Evidence Pack Export</CardTitle>
-              <CardDescription>
-                Generate a downloadable evidence pack for each project — decisions, notes, and document history in one PDF.
+              <CardTitle className="text-sm font-semibold text-muted-foreground">
+                Evidence &amp; Audit Pack Generation
+              </CardTitle>
+              <CardDescription className="text-xs leading-relaxed">
+                Export compliance evidence and review history for audits and client reporting.
               </CardDescription>
             </CardHeader>
           </Card>
+
         </div>
       </section>
 
       {/* 7. SECURITY & AUDITABILITY SECTION */}
-      <section aria-label="Security and auditability" className="bg-muted/30 rounded-2xl p-8 sm:p-12 space-y-6">
-        <div className="flex items-center gap-2">
-          <Lock className="h-5 w-5 text-primary" />
-          <h2 className="text-2xl font-semibold tracking-tight">Security and auditability by design</h2>
+      <section aria-label="Built for Accountability" className="rounded-2xl border bg-muted/20 p-8 sm:p-12 space-y-8">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold tracking-tight">Built for Accountability</h2>
+          <p className="text-muted-foreground">
+            Governance is not a feature you add later. It is built into every part of the workflow.
+          </p>
         </div>
-        <p className="text-muted-foreground">Every action is logged. Access is gated. Your compliance record is always ready.</p>
         <div className="grid gap-6 sm:grid-cols-2">
-          <div className="flex gap-3">
-            <div className="rounded-lg bg-background border p-2 shadow-sm h-fit">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="font-semibold text-sm">Supabase Authentication</p>
-              <p className="text-sm text-muted-foreground">Email-based sign-in with secure session management. No passwords stored in application code.</p>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <div className="rounded-lg bg-background border p-2 shadow-sm h-fit">
-              <Lock className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="font-semibold text-sm">Row-Level Security</p>
-              <p className="text-sm text-muted-foreground">Supabase RLS policies ensure users can only read and write data they are authorised to access.</p>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <div className="rounded-lg bg-background border p-2 shadow-sm h-fit">
+          <div className="flex gap-4">
+            <div className="h-fit shrink-0 rounded-lg border bg-background p-2 shadow-sm">
               <Clock className="h-5 w-5 text-primary" />
             </div>
-            <div>
-              <p className="font-semibold text-sm">Full Audit Trail</p>
-              <p className="text-sm text-muted-foreground">Every review decision, override, and project change is recorded with a timestamp and user identity.</p>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">Audit Trail</p>
+              <p className="text-sm text-muted-foreground">
+                Every review action, approval, rejection, and override is recorded with a
+                timestamp and user identity. Nothing is silent.
+              </p>
             </div>
           </div>
-          <div className="flex gap-3">
-            <div className="rounded-lg bg-background border p-2 shadow-sm h-fit">
-              <Key className="h-5 w-5 text-primary" />
+          <div className="flex gap-4">
+            <div className="h-fit shrink-0 rounded-lg border bg-background p-2 shadow-sm">
+              <Users className="h-5 w-5 text-primary" />
             </div>
-            <div>
-              <p className="font-semibold text-sm">Role-Gated API Routes</p>
-              <p className="text-sm text-muted-foreground">Every API endpoint checks the caller&apos;s role before returning data or accepting changes.</p>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">Human-in-the-Loop Review</p>
+              <p className="text-sm text-muted-foreground">
+                Approvals remain under human control. AI recommendations, when available,
+                will surface gaps — not make decisions.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <div className="h-fit shrink-0 rounded-lg border bg-background p-2 shadow-sm">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">UK Construction Focus</p>
+              <p className="text-sm text-muted-foreground">
+                Designed around construction RAMS review workflows, CDM obligations, and
+                UK health and safety compliance processes.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <div className="h-fit shrink-0 rounded-lg border bg-background p-2 shadow-sm">
+              <Lock className="h-5 w-5 text-primary" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">Data Handling</p>
+              <p className="text-sm text-muted-foreground">
+                Project and review data is isolated by organisation, access-controlled by
+                role, and never shared across tenancies.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
       {/* 8. FINAL CTA SECTION */}
-      <section aria-label="Call to action" className="mt-16 py-12 text-center space-y-6">
-        <h2 className="text-2xl font-bold sm:text-3xl">
-          Ready to bring your RAMS review process into one place?
-        </h2>
-        <p className="text-muted-foreground">
-          Start with Phase 1 today — project management, role-based access, document upload, and audit trail are live.
-        </p>
-        <div className="flex flex-col gap-3 sm:flex-row justify-center">
-          <Button asChild>
+      <section aria-label="Call to action" className="rounded-2xl border bg-card px-8 py-14 sm:py-20 text-center space-y-6">
+        <div className="mx-auto max-w-2xl space-y-4">
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            Start building a structured RAMS review process today.
+          </h2>
+          <p className="text-muted-foreground">
+            Centralise reviews, manage accountability, and prepare for AI-assisted
+            compliance workflows.
+          </p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <Button asChild size="lg">
             <Link href="/login">
-              Create your first project
+              Start Phase 1 Workspace
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
-          <Button asChild variant="outline">
-            <Link href="/dashboard">Open dashboard</Link>
+          <Button asChild size="lg" variant="outline">
+            <Link href="#coming-next">View Product Roadmap</Link>
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          This is a decision-support tool. Final compliance decisions remain with qualified personnel.{" "}
-          <Link href="/privacy" className="underline hover:text-foreground">Privacy</Link>
+          This is a decision-support tool for construction compliance. Final compliance
+          decisions remain with qualified personnel.{" "}
+          <Link href="/privacy" className="underline hover:text-foreground transition-colors">
+            Privacy
+          </Link>
           {" · "}
-          <Link href="/terms" className="underline hover:text-foreground">Terms</Link>
+          <Link href="/terms" className="underline hover:text-foreground transition-colors">
+            Terms
+          </Link>
         </p>
       </section>
     </div>
