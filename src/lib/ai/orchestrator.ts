@@ -46,6 +46,15 @@ interface InsertedRequirementRow {
   requirement_code: string;
 }
 
+interface PersistedReviewCheckRow {
+  requirement_id: string;
+  status: ComplianceCheck['status'];
+  severity: ComplianceCheck['severity'];
+  score: number;
+  rams_evidence: string;
+  explanation: string;
+}
+
 /**
  * Semantic requirement retrieval using vector search (embeddings + pgvector).
  * Returns the most relevant requirements for the given RAMS text.
@@ -55,6 +64,7 @@ async function getRelevantRequirements(
   supabase: Awaited<ReturnType<typeof createServerSupabaseWithTimeout>>,
   projectId: string,
   ramsText: string,
+  requirementDbIds: Map<string, string>,
   topK = 30
 ): Promise<ComplianceRequirement[]> {
   try {
@@ -96,15 +106,19 @@ async function getRelevantRequirements(
     }
     if (!requirements?.length) return [];
 
-    return (requirements as RequirementRow[]).map((r) => ({
-      requirementCode: r.requirement_code,
-      requirementText: r.requirement_text,
-      category: r.category,
-      severity: r.severity as 'critical' | 'major' | 'minor',
-      sourceDocumentId: r.source_document_id ?? '',
-      sourceDocumentName: '',
-      sourceExcerpt: r.source_excerpt ?? '',
-    }));
+    return (requirements as RequirementRow[]).map((r) => {
+      requirementDbIds.set(r.requirement_code, r.id);
+
+      return {
+        requirementCode: r.requirement_code,
+        requirementText: r.requirement_text,
+        category: r.category,
+        severity: r.severity as 'critical' | 'major' | 'minor',
+        sourceDocumentId: r.source_document_id ?? '',
+        sourceDocumentName: '',
+        sourceExcerpt: r.source_excerpt ?? '',
+      };
+    });
   } catch (err) {
     logger.warn('Vector requirement retrieval failed (graceful fallback)', { error: err });
     return [];
@@ -134,19 +148,60 @@ export async function orchestrateRAMSReview(
     }
 
     const project = rams.projects;
+    if (!project) {
+      return { success: false, error: 'RAMS project not found' };
+    }
+
+    // Idempotency/concurrency guard: only one analysis may be in progress for a
+    // RAMS record. The final review write set is persisted atomically later via
+    // persist_rams_review_result().
+    const { data: startedReview, error: startError } = await supabase
+      .from('rams_submissions')
+      .update({ review_status: 'processing' })
+      .eq('id', ramsSubmissionId)
+      .neq('review_status', 'processing')
+      .select('id')
+      .maybeSingle();
+
+    if (startError) {
+      throw new Error(`Failed to mark RAMS review as processing: ${startError.message}`);
+    }
+
+    if (!startedReview) {
+      return { success: false, error: 'RAMS review is already processing' };
+    }
 
     // 2. Load compliance documents
-    const { data: complianceDocs } = await supabase
+    const { data: complianceDocs, error: complianceDocsError } = await supabase
       .from('compliance_documents')
       .select('id, file_name, document_category, extracted_text')
       .eq('project_id', project.id)
       .eq('extraction_status', 'complete');
 
+    if (complianceDocsError) {
+      throw new Error(`Failed to load compliance documents: ${complianceDocsError.message}`);
+    }
+
     if (!complianceDocs?.length) {
-      const { error: statusErr } = await supabase.from('rams_submissions').update({ review_status: 'manual_review' }).eq('id', ramsSubmissionId);
+      const { error: statusErr } = await supabase
+        .from('rams_submissions')
+        .update({
+          review_status: 'manual_review',
+          decision_explanation: 'No extracted compliance documents were available for automated review.',
+        })
+        .eq('id', ramsSubmissionId);
       if (statusErr) {
-        logger.warn('Failed to set manual_review status (non-fatal)', { ramsSubmissionId, error: statusErr.message });
+        throw new Error(`Failed to set manual_review status: ${statusErr.message}`);
       }
+
+      await createAuditLog('REVIEW_RAMS_FAILED', 'rams_submission', ramsSubmissionId, {
+        userId: performedByUserId,
+        details: {
+          reason: 'No compliance documents available',
+          integrityAction: 'manual_review_status_recorded',
+        },
+      });
+
       return { success: true, decision: 'manual_review', error: 'No compliance documents available' };
     }
 
@@ -155,7 +210,12 @@ export async function orchestrateRAMSReview(
     const requirementDbIds = new Map<string, string>();
 
     // Try semantic retrieval first (P0 improvement)
-    const vectorRequirements = await getRelevantRequirements(supabase, project.id, rams.extracted_text);
+    const vectorRequirements = await getRelevantRequirements(
+      supabase,
+      project.id,
+      rams.extracted_text,
+      requirementDbIds
+    );
 
     if (vectorRequirements.length > 0) {
       requirements = vectorRequirements;
@@ -165,10 +225,14 @@ export async function orchestrateRAMSReview(
       });
     } else {
       // Fallback: load existing or extract new
-      const { data: existingReqs } = await supabase
+      const { data: existingReqs, error: existingReqsError } = await supabase
         .from('compliance_requirements')
         .select('*')
         .eq('project_id', project.id);
+
+      if (existingReqsError) {
+        throw new Error(`Failed to load compliance requirements: ${existingReqsError.message}`);
+      }
 
       if (existingReqs?.length) {
         requirements = (existingReqs as RequirementRow[]).map((r) => {
@@ -214,14 +278,37 @@ export async function orchestrateRAMSReview(
             throw new Error(`Failed to persist extracted requirements: ${insertReqError.message}`);
           }
 
-          (inserted as InsertedRequirementRow[] | null)?.forEach((row) =>
-            requirementDbIds.set(row.requirement_code, row.id)
-          );
+          const insertedRows = inserted as InsertedRequirementRow[] | null;
+          if (!insertedRows?.length) {
+            throw new Error('Persisted extracted requirements but no IDs were returned');
+          }
+
+          insertedRows.forEach((row) => requirementDbIds.set(row.requirement_code, row.id));
         }
       }
     }
 
     if (requirements.length === 0) {
+      const { error: statusErr } = await supabase
+        .from('rams_submissions')
+        .update({
+          review_status: 'manual_review',
+          decision_explanation: 'No compliance requirements were available for automated review.',
+        })
+        .eq('id', ramsSubmissionId);
+
+      if (statusErr) {
+        throw new Error(`Failed to set manual_review status: ${statusErr.message}`);
+      }
+
+      await createAuditLog('REVIEW_RAMS_FAILED', 'rams_submission', ramsSubmissionId, {
+        userId: performedByUserId,
+        details: {
+          reason: 'No requirements available for comparison',
+          integrityAction: 'manual_review_status_recorded',
+        },
+      });
+
       return { success: false, error: 'No requirements available for comparison' };
     }
 
@@ -277,84 +364,53 @@ export async function orchestrateRAMSReview(
       corrections: explanation.requiredCorrections,
     });
 
-    // 7. Persist review
-    const { data: review, error: reviewError } = await supabase
-      .from('rams_reviews')
-      .insert({
-        rams_submission_id: ramsSubmissionId,
-        review_status: scoring.decision,
-        compliance_score: scoring.complianceScore,
-        confidence_score: scoring.confidenceScore,
-        decision_explanation: explanation.summary,
-        email_generated: true,
-        email_sent: false,
-      })
-      .select()
-      .single();
+    const checkRows = comparison.checks.flatMap((check: ComplianceCheck): PersistedReviewCheckRow[] => {
+      const requirementId = requirementDbIds.get(check.requirementId);
+      if (!requirementId) return [];
 
-    if (reviewError || !review) {
-      throw new Error(`Failed to persist review: ${reviewError?.message ?? 'unknown error'}`);
-    }
-
-    // 8. Persist checks
-    if (comparison.checks.length > 0) {
-      const checkRows = comparison.checks
-        .map((check: ComplianceCheck) => ({
-          rams_review_id: review.id,
-          requirement_id: requirementDbIds.get(check.requirementId) ?? null,
-          status: check.status,
-          severity: check.severity,
-          score: check.score,
-          rams_evidence: check.ramsEvidence,
-          explanation: check.explanation,
-        }))
-        .filter((r) => r.requirement_id !== null);
-
-      if (checkRows.length > 0) {
-        const { error: checksError } = await supabase.from('review_checks').insert(checkRows);
-        if (checksError) {
-          throw new Error(`Failed to persist review checks: ${checksError.message}`);
-        }
-      }
-    }
-
-    // 9. Persist email draft
-    const { error: emailError } = await supabase.from('generated_emails').insert({
-      rams_submission_id: ramsSubmissionId,
-      subject: emailDraft.subject,
-      body: emailDraft.body,
-      sent: false,
+      return [{
+        requirement_id: requirementId,
+        status: check.status,
+        severity: check.severity,
+        score: check.score,
+        rams_evidence: check.ramsEvidence,
+        explanation: check.explanation,
+      }];
     });
-    if (emailError) {
-      throw new Error(`Failed to persist email draft: ${emailError.message}`);
+
+    if (comparison.checks.length > 0 && checkRows.length === 0) {
+      throw new Error('No comparison checks could be linked to persisted compliance requirements');
     }
 
-    // 10. Update RAMS summary
-    const { error: ramsUpdateError } = await supabase.from('rams_submissions').update({
-      review_status: scoring.decision,
-      compliance_score: scoring.complianceScore,
-      confidence_score: scoring.confidenceScore,
-      decision_explanation: explanation.summary,
-      reviewed_for_cdm: true,
-    }).eq('id', ramsSubmissionId);
-    if (ramsUpdateError) {
-      throw new Error(`Failed to update RAMS submission: ${ramsUpdateError.message}`);
-    }
-
-    // 11. Audit
-    await createAuditLog('REVIEW_RAMS', 'rams_submission', ramsSubmissionId, {
-      userId: performedByUserId,
-      details: {
+    // Atomic integrity boundary: the database function writes the review,
+    // checks, email draft, RAMS summary, and audit log in one transaction.
+    const { data: reviewId, error: persistError } = await supabase.rpc('persist_rams_review_result', {
+      p_rams_submission_id: ramsSubmissionId,
+      p_review_status: scoring.decision,
+      p_compliance_score: scoring.complianceScore,
+      p_confidence_score: scoring.confidenceScore,
+      p_decision_explanation: explanation.summary,
+      p_email_subject: emailDraft.subject,
+      p_email_body: emailDraft.body,
+      p_reviewed_by: performedByUserId ?? null,
+      p_checks: checkRows,
+      p_audit_details: {
         decision: scoring.decision,
         score: scoring.complianceScore,
         checks: comparison.checks.length,
+        persistedChecks: checkRows.length,
         vectorRetrievalUsed: vectorRequirements.length > 0,
+        atomicPersistence: true,
       },
     });
 
+    if (persistError || !reviewId) {
+      throw new Error(`Failed to atomically persist RAMS review: ${persistError?.message ?? 'no review id returned'}`);
+    }
+
     return {
       success: true,
-      reviewId: review.id,
+      reviewId: String(reviewId),
       decision: scoring.decision,
       complianceScore: scoring.complianceScore,
       confidenceScore: scoring.confidenceScore,
@@ -363,9 +419,27 @@ export async function orchestrateRAMSReview(
     const message = error instanceof Error ? error.message : 'Unknown error';
     logger.error('orchestrateRAMSReview failed', { ramsSubmissionId, error: message });
 
-    const { error: failErr } = await supabase.from('rams_submissions').update({ review_status: 'failed' }).eq('id', ramsSubmissionId);
+    const { error: failErr } = await supabase
+      .from('rams_submissions')
+      .update({ review_status: 'failed' })
+      .eq('id', ramsSubmissionId);
     if (failErr) {
       logger.error('Also failed to mark RAMS as failed', { ramsSubmissionId, error: failErr.message });
+    }
+
+    try {
+      await createAuditLog('REVIEW_RAMS_FAILED', 'rams_submission', ramsSubmissionId, {
+        userId: performedByUserId,
+        details: {
+          error: message,
+          integrityAction: failErr ? 'failed_status_update_failed' : 'failed_status_recorded',
+        },
+      });
+    } catch (auditError) {
+      logger.error('Failed to record RAMS review failure audit log', {
+        ramsSubmissionId,
+        error: auditError instanceof Error ? auditError.message : String(auditError),
+      });
     }
 
     return { success: false, error: message };

@@ -1,5 +1,6 @@
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { logger } from "@/lib/logging";
+import type { PostgrestError } from "@supabase/supabase-js";
 
 /**
  * Actions that represent highly sensitive, irreversible, or compliance-critical operations.
@@ -15,11 +16,15 @@ const CRITICAL_ACTIONS = new Set<string>([
 
   // Manual override of automated AI compliance decisions
   'OVERRIDE_RAMS_REVIEW',
+  'REVIEW_RAMS',
+  'REVIEW_RAMS_FAILED',
 
   // Destructive / high-privilege operations
   'DELETE_PROJECT',
   'DELETE_COMPLIANCE_DOCUMENT',
   'REMOVE_PROJECT_MEMBER',
+  'DOCUMENT_PROCESSING_COMPLETED',
+  'DOCUMENT_PROCESSING_FAILED',
 ]);
 
 export function isCriticalAuditAction(action: string): boolean {
@@ -50,15 +55,7 @@ export async function createAuditLog(
 
     // Supabase/PostgREST errors are objects; String(error) produces "[object Object]".
     // Extract the useful fields for observability.
-    const errorInfo =
-      error && typeof error === 'object'
-        ? {
-            message: (error as any).message,
-            code: (error as any).code,
-            details: (error as any).details,
-            hint: (error as any).hint,
-          }
-        : { message: String(error) };
+    const errorInfo = toPostgrestErrorInfo(error);
 
     logger.error(
       isCritical ? `CRITICAL AUDIT LOG FAILURE: ${action}` : 'Failed to create audit log',
@@ -104,13 +101,21 @@ export async function getAuditLogs(
   const { data, error } = await query;
 
   if (error) {
-    const errorInfo =
-      error && typeof error === 'object'
-        ? { message: (error as any).message, code: (error as any).code }
-        : { message: String(error) };
+    const errorInfo = toPostgrestErrorInfo(error);
     logger.error("Failed to fetch audit logs", { error: errorInfo });
     return [];
   }
 
   return data ?? [];
+}
+
+function toPostgrestErrorInfo(error: PostgrestError | null) {
+  if (!error) return { message: 'Unknown Supabase error' };
+
+  return {
+    message: error.message,
+    code: error.code,
+    details: error.details,
+    hint: error.hint,
+  };
 }

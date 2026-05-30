@@ -83,7 +83,7 @@ export async function POST(request: Request, { params }: Context) {
       return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
-    await supabase.from("rams_reviews").insert({
+    const { error: reviewInsertError } = await supabase.from("rams_reviews").insert({
       rams_submission_id: ramsId,
       review_status: decision,
       compliance_score: rams.compliance_score ?? 0,
@@ -94,6 +94,14 @@ export async function POST(request: Request, { params }: Context) {
       email_sent: false,
     });
 
+    if (reviewInsertError) {
+      logger.error("Failed to insert RAMS override review record", {
+        error: reviewInsertError.message,
+        ramsId,
+      });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+
     await createAuditLog("OVERRIDE_RAMS_REVIEW", "rams_submission", ramsId, {
       userId: user.id,
       details: {
@@ -101,6 +109,8 @@ export async function POST(request: Request, { params }: Context) {
         newStatus: decision,
         reason,
         overriddenByRole: profile.role,
+        reviewedForCdm: true,
+        integrityAction: "submission_and_review_record_written",
       },
     });
 
