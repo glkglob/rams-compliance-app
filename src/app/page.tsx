@@ -338,19 +338,23 @@ export default function Home() {
         <ProductShowcase />
       </section>
 
-      {/* 4. LIVE DEMO SECTION */}
-      <section aria-label="See it in action" className="space-y-6">
+      {/* 4. LIVE DEMO SECTION - Document Upload & Extraction (P0 - Discoverability) */}
+      <section id="see-it-in-action" aria-label="See it in action" className="space-y-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Monitor className="h-5 w-5 text-primary" />
-            <h2 className="text-2xl font-semibold tracking-tight">Try document extraction now</h2>
+            <h2 className="text-2xl font-semibold tracking-tight">Try Document Upload &amp; Extraction — Live Demo</h2>
           </div>
           <p className="text-muted-foreground">
-            Upload a PDF, Word doc, or plain text file. Text is extracted on the server and returned immediately — no sign-in required.
+            Upload a PDF, Word (.docx/.doc), or TXT file. Text is extracted on the server using pdf-parse and mammoth. 
+            <strong> For the full AI gap analysis experience</strong>, upload the same document as a RAMS inside a Project.
           </p>
         </div>
         <div className="mx-auto max-w-2xl">
           <DocumentUploadDemo />
+        </div>
+        <div className="text-center text-sm text-muted-foreground">
+          Want the complete flow? <Link href="/projects" className="font-medium underline">Create a Project</Link> → Upload RAMS → Run AI Analysis on the detail page.
         </div>
       </section>
 
@@ -455,7 +459,63 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 6. COMING NEXT SECTION */}
+      {/* 6. CORE LIVE CAPABILITIES (P0 - Perception Fix) */}
+      <section id="core-capabilities" aria-label="Core Live Capabilities" className="space-y-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="h-5 w-5 text-primary" />
+            <h2 className="text-2xl font-semibold tracking-tight">Core Capabilities — Live Today</h2>
+          </div>
+          <p className="text-muted-foreground">
+            These two features are fully operational and ready for production use.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* Document Upload & Extraction - Live */}
+          <Card className="flex flex-col border-green-200 bg-green-50/30">
+            <CardHeader className="flex-1">
+              <div className="mb-3 flex items-center justify-between">
+                <FileUp className="h-5 w-5 text-green-600" />
+                <Badge variant="outline" className="border-green-600 text-green-700">Available Now</Badge>
+              </div>
+              <CardTitle className="text-sm font-semibold">
+                Document Upload &amp; Extraction
+              </CardTitle>
+              <CardDescription className="text-xs leading-relaxed">
+                Upload RAMS and supporting documents (PDF, DOCX, TXT) and automatically extract clean, structured text ready for review.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link href="#see-it-in-action">Try Extraction Now</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* AI-Assisted Compliance Checking - Live */}
+          <Card className="flex flex-col border-green-200 bg-green-50/30">
+            <CardHeader className="flex-1">
+              <div className="mb-3 flex items-center justify-between">
+                <Sparkles className="h-5 w-5 text-green-600" />
+                <Badge variant="outline" className="border-green-600 text-green-700">Available Now</Badge>
+              </div>
+              <CardTitle className="text-sm font-semibold">
+                AI-Assisted Compliance Checking
+              </CardTitle>
+              <CardDescription className="text-xs leading-relaxed">
+                Compare extracted RAMS content against your project&apos;s compliance requirements and automatically surface gaps with evidence and severity ratings.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link href="/projects">Start in a Project → Upload RAMS → Run Analysis</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* 7. ROADMAP / COMING NEXT (only future items) */}
       <section id="coming-next" aria-label="Roadmap" className="space-y-6">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
@@ -463,57 +523,18 @@ export default function Home() {
             <h2 className="text-2xl font-semibold tracking-tight">Coming Next</h2>
           </div>
           <p className="text-muted-foreground">
-            None of the features below are available yet. We will update this page as each one ships.
+            Features actively in development.
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
-          {/* Coming Soon — closer on the roadmap */}
-          <Card className="flex flex-col border-dashed bg-muted/20">
-            <CardHeader className="flex-1">
-              <div className="mb-3 flex items-center justify-between">
-                <FileUp className="h-5 w-5 text-muted-foreground" />
-                <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-                  Coming Soon
-                </span>
-              </div>
-              <CardTitle className="text-sm font-semibold text-foreground">
-                Document Upload &amp; Extraction
-              </CardTitle>
-              <CardDescription className="text-xs leading-relaxed">
-                Upload RAMS and supporting documents and automatically extract content for review.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          {/* Planned items */}
-          <Card className="flex flex-col border-dashed bg-muted/20">
-            <CardHeader className="flex-1">
-              <div className="mb-3 flex items-center justify-between">
-                <Sparkles className="h-5 w-5 text-muted-foreground" />
-                <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                  Planned
-                </span>
-              </div>
-              <CardTitle className="text-sm font-semibold text-muted-foreground">
-                AI-Assisted Compliance Checking
-              </CardTitle>
-              <CardDescription className="text-xs leading-relaxed">
-                Compare extracted content against project requirements and identify potential gaps.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Card className="flex flex-col border-dashed bg-muted/20">
             <CardHeader className="flex-1">
               <div className="mb-3 flex items-center justify-between">
                 <Gauge className="h-5 w-5 text-muted-foreground" />
-                <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                  Planned
-                </span>
+                <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">Planned</span>
               </div>
               <CardTitle className="text-sm font-semibold text-muted-foreground">
-                Compliance Scoring Engine
+                Automated Compliance Scoring
               </CardTitle>
               <CardDescription className="text-xs leading-relaxed">
                 Generate review scores and structured recommendations for human approval.
@@ -525,9 +546,7 @@ export default function Home() {
             <CardHeader className="flex-1">
               <div className="mb-3 flex items-center justify-between">
                 <FileBox className="h-5 w-5 text-muted-foreground" />
-                <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                  Planned
-                </span>
+                <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">Planned</span>
               </div>
               <CardTitle className="text-sm font-semibold text-muted-foreground">
                 Evidence &amp; Audit Pack Generation
@@ -537,11 +556,10 @@ export default function Home() {
               </CardDescription>
             </CardHeader>
           </Card>
-
         </div>
       </section>
 
-      {/* 7. SECURITY & AUDITABILITY SECTION */}
+      {/* 8. SECURITY & AUDITABILITY SECTION */}
       <section aria-label="Built for Accountability" className="rounded-2xl border bg-muted/20 p-8 sm:p-12 space-y-8">
         <div className="space-y-1">
           <h2 className="text-2xl font-semibold tracking-tight">Built for Accountability</h2>

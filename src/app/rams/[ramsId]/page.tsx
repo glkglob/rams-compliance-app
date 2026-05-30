@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { 
-  RefreshCw, FileText, BarChart3, AlertTriangle 
+  RefreshCw, FileText, BarChart3, AlertTriangle, CheckCircle 
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReviewResults } from '@/components/rams/review-results';
 import { GapList } from '@/components/rams/gap-list';
+import { GapAnalysisSummary } from '@/components/rams/gap-analysis-summary';
 
 interface RAMSData {
   id: string;
@@ -35,6 +36,9 @@ interface RAMSData {
 
 export default function RAMSDetailPage() {
   const params = useParams<{ ramsId: string }>();
+  const searchParams = useSearchParams(); // Add this import if not present
+  const justUploaded = searchParams?.get('justUploaded') === 'true';
+
   const [rams, setRams] = useState<RAMSData | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviewing, setReviewing] = useState(false);
@@ -125,6 +129,21 @@ export default function RAMSDetailPage() {
         </div>
       </div>
 
+      {/* Post-upload guidance (P0 Discoverability) */}
+      {justUploaded && (
+        <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-800">
+          <div className="flex items-start gap-3">
+            <CheckCircle className="mt-0.5 h-5 w-5 text-green-600" />
+            <div>
+              <p className="font-semibold">RAMS uploaded successfully!</p>
+              <p className="text-sm mt-1">
+                Next step: Run AI-powered gap analysis to compare this RAMS against your project&apos;s compliance requirements.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Action */}
       <Card>
         <CardContent className="pt-6">
@@ -176,7 +195,14 @@ export default function RAMSDetailPage() {
                   <BarChart3 className="h-5 w-5" /> Summary
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
+                {latestReview && latestReview.review_checks && (
+                  <GapAnalysisSummary 
+                    checks={latestReview.review_checks} 
+                    complianceScore={rams.compliance_score} 
+                  />
+                )}
+
                 {rams.decision_explanation && (
                   <div>
                     <div className="text-sm font-medium text-muted-foreground mb-1">AI Summary</div>

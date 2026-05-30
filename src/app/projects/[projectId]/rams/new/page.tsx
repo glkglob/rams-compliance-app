@@ -63,7 +63,8 @@ export default function NewRAMSPage() {
 
       if (response.ok) {
         const rams = (await response.json()) as { id: string };
-        router.push(`/rams/${rams.id}`);
+        // Pass a hint so the detail page can show prominent "Run AI Analysis" guidance
+        router.push(`/rams/${rams.id}?justUploaded=true`);
       } else {
         const errorData = (await response.json()) as { error?: string };
         setError(errorData.error ?? "Failed to upload RAMS");

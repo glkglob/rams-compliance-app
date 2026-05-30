@@ -6,6 +6,7 @@ import { compareCompliance } from '@/lib/ai/agents/compliance-comparison-agent';
 import { generateExplanation } from '@/lib/ai/agents/explanation-agent';
 import { generateEmail } from '@/lib/ai/agents/email-generation-agent';
 import { calculateComplianceScore } from '@/lib/scoring/calculate-compliance-score';
+import { generateEmbeddings } from '@/lib/ai/embeddings';
 import type {
   ComplianceRequirement,
   ComplianceCheck,
@@ -45,6 +46,66 @@ interface InsertedRequirementRow {
   requirement_code: string;
 }
 
+/**
+ * Semantic requirement retrieval using vector search (embeddings + pgvector).
+ * Returns the most relevant requirements for the given RAMS text.
+ * Falls back to empty array on failure (graceful degradation).
+ */
+async function getRelevantRequirements(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseWithTimeout>>,
+  projectId: string,
+  ramsText: string,
+  topK = 30
+): Promise<ComplianceRequirement[]> {
+  try {
+    // Embed a prefix of the RAMS text (sufficient for retrieval)
+    const embeddings = await generateEmbeddings([ramsText.slice(0, 2000)]);
+    if (!embeddings.length) return [];
+
+    const queryEmbedding = embeddings[0];
+
+    // Use existing vector search RPC on document_chunks
+    const { data: chunks, error } = await supabase.rpc('match_document_chunks', {
+      query_embedding: queryEmbedding,
+      match_threshold: 0.68,
+      match_count: topK,
+      filter_project_id: projectId,
+    });
+
+    if (error || !chunks?.length) {
+      logger.warn('Vector search returned no results or failed', { error });
+      return [];
+    }
+
+    // Get unique source document IDs from the relevant chunks
+    const documentIds = [...new Set((chunks as any[]).map((c) => c.document_id).filter(Boolean))];
+
+    if (documentIds.length === 0) return [];
+
+    // Load requirements that originated from these relevant documents
+    const { data: requirements } = await supabase
+      .from('compliance_requirements')
+      .select('*')
+      .eq('project_id', projectId)
+      .in('source_document_id', documentIds);
+
+    if (!requirements?.length) return [];
+
+    return (requirements as RequirementRow[]).map((r) => ({
+      requirementCode: r.requirement_code,
+      requirementText: r.requirement_text,
+      category: r.category,
+      severity: r.severity as 'critical' | 'major' | 'minor',
+      sourceDocumentId: r.source_document_id ?? '',
+      sourceDocumentName: '',
+      sourceExcerpt: r.source_excerpt ?? '',
+    }));
+  } catch (err) {
+    logger.warn('Vector requirement retrieval failed (graceful fallback)', { error: err });
+    return [];
+  }
+}
+
 export async function orchestrateRAMSReview(
   ramsSubmissionId: string,
   performedByUserId?: string
@@ -81,58 +142,70 @@ export async function orchestrateRAMSReview(
       return { success: true, decision: 'manual_review', error: 'No compliance documents available' };
     }
 
-    // 3. Load or extract requirements
+    // 3. Get requirements using vector search (preferred) or fallback
     let requirements: ComplianceRequirement[] = [];
     const requirementDbIds = new Map<string, string>();
 
-    const { data: existingReqs } = await supabase
-      .from('compliance_requirements')
-      .select('*')
-      .eq('project_id', project.id);
+    // Try semantic retrieval first (P0 improvement)
+    const vectorRequirements = await getRelevantRequirements(supabase, project.id, rams.extracted_text);
 
-    if (existingReqs?.length) {
-      requirements = (existingReqs as RequirementRow[]).map((r) => {
-        requirementDbIds.set(r.requirement_code, r.id);
-        return {
-          requirementCode: r.requirement_code,
-          requirementText: r.requirement_text,
-          category: r.category,
-          severity: r.severity as 'critical' | 'major' | 'minor',
-          sourceDocumentId: r.source_document_id ?? '',
-          sourceDocumentName: '',
-          sourceExcerpt: r.source_excerpt ?? '',
-        };
+    if (vectorRequirements.length > 0) {
+      requirements = vectorRequirements;
+      logger.info('Using vector-based requirement retrieval', {
+        ramsSubmissionId,
+        requirementsFound: requirements.length,
       });
     } else {
-      const extractionResult = await extractRequirements({
-        projectId: project.id,
-        documents: (complianceDocs as ComplianceDocRow[]).map((d) => ({
-          documentId: d.id,
-          fileName: d.file_name,
-          category: d.document_category,
-          text: d.extracted_text || '',
-        })),
-      });
+      // Fallback: load existing or extract new
+      const { data: existingReqs } = await supabase
+        .from('compliance_requirements')
+        .select('*')
+        .eq('project_id', project.id);
 
-      requirements = extractionResult.requirements.filter((r) => r.requirementText?.trim());
+      if (existingReqs?.length) {
+        requirements = (existingReqs as RequirementRow[]).map((r) => {
+          requirementDbIds.set(r.requirement_code, r.id);
+          return {
+            requirementCode: r.requirement_code,
+            requirementText: r.requirement_text,
+            category: r.category,
+            severity: r.severity as 'critical' | 'major' | 'minor',
+            sourceDocumentId: r.source_document_id ?? '',
+            sourceDocumentName: '',
+            sourceExcerpt: r.source_excerpt ?? '',
+          };
+        });
+      } else {
+        const extractionResult = await extractRequirements({
+          projectId: project.id,
+          documents: (complianceDocs as ComplianceDocRow[]).map((d) => ({
+            documentId: d.id,
+            fileName: d.file_name,
+            category: d.document_category,
+            text: d.extracted_text || '',
+          })),
+        });
 
-      if (requirements.length > 0) {
-        const { data: inserted } = await supabase
-          .from('compliance_requirements')
-          .insert(requirements.map((req) => ({
-            project_id: project.id,
-            source_document_id: req.sourceDocumentId || null,
-            requirement_code: req.requirementCode,
-            requirement_text: req.requirementText,
-            category: req.category,
-            severity: req.severity,
-            source_excerpt: req.sourceExcerpt || null,
-          })))
-          .select('id, requirement_code');
+        requirements = extractionResult.requirements.filter((r) => r.requirementText?.trim());
 
-        (inserted as InsertedRequirementRow[] | null)?.forEach((row) =>
-          requirementDbIds.set(row.requirement_code, row.id)
-        );
+        if (requirements.length > 0) {
+          const { data: inserted } = await supabase
+            .from('compliance_requirements')
+            .insert(requirements.map((req) => ({
+              project_id: project.id,
+              source_document_id: req.sourceDocumentId || null,
+              requirement_code: req.requirementCode,
+              requirement_text: req.requirementText,
+              category: req.category,
+              severity: req.severity,
+              source_excerpt: req.sourceExcerpt || null,
+            })))
+            .select('id, requirement_code');
+
+          (inserted as InsertedRequirementRow[] | null)?.forEach((row) =>
+            requirementDbIds.set(row.requirement_code, row.id)
+          );
+        }
       }
     }
 
@@ -140,8 +213,31 @@ export async function orchestrateRAMSReview(
       return { success: false, error: 'No requirements available for comparison' };
     }
 
-    // 4. Run comparison
-    const comparison: ComplianceComparisonOutput = await compareCompliance(requirements, rams.extracted_text);
+    // 4. Prepare RAMS text for comparison (P0: Chunked extraction for long documents)
+    let ramsTextForAnalysis = rams.extracted_text;
+    const MAX_ANALYSIS_CHARS = 12000; // ~3000 tokens safe limit for high-quality comparison
+
+    if (ramsTextForAnalysis.length > MAX_ANALYSIS_CHARS) {
+      // Use existing chunking utility for better context preservation
+      const { chunkText } = await import('@/lib/documents/chunk-text');
+      const chunks = chunkText(ramsTextForAnalysis, 3000, 400); // 3000 char chunks with 400 overlap
+
+      // Take the first few most important chunks (beginning + middle for context)
+      const selectedChunks = [
+        chunks[0]?.text || '',
+        chunks[Math.floor(chunks.length / 2)]?.text || '',
+        chunks[chunks.length - 1]?.text || '',
+      ].filter(Boolean);
+
+      ramsTextForAnalysis = selectedChunks.join('\n\n[...]\n\n');
+      logger.info('Long RAMS text chunked for analysis', {
+        originalLength: rams.extracted_text.length,
+        chunksUsed: selectedChunks.length,
+      });
+    }
+
+    // 5. Run comparison (on potentially chunked/summarized text)
+    const comparison: ComplianceComparisonOutput = await compareCompliance(requirements, ramsTextForAnalysis);
 
     // 5. Score
     const scoring: RiskScoringOutput = calculateComplianceScore(
@@ -230,6 +326,7 @@ export async function orchestrateRAMSReview(
         decision: scoring.decision,
         score: scoring.complianceScore,
         checks: comparison.checks.length,
+        vectorRetrievalUsed: vectorRequirements.length > 0,
       },
     });
 
