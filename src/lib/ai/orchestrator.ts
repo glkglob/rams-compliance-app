@@ -7,7 +7,6 @@ import { generateExplanation } from '@/lib/ai/agents/explanation-agent';
 import { generateEmail } from '@/lib/ai/agents/email-generation-agent';
 import { calculateComplianceScore } from '@/lib/scoring/calculate-compliance-score';
 import { generateEmbeddings } from '@/lib/ai/embeddings';
-import { chunkAndEmbedText } from '@/lib/ai/chunking';
 import type {
   ComplianceRequirement,
   ComplianceCheck,
@@ -130,40 +129,6 @@ export async function orchestrateRAMSReview(
     }
 
     const project = rams.projects;
-
-    // Store RAMS chunks with embeddings (if not already stored)
-    if (rams.extracted_text && rams.extracted_text.length > 2000) {
-      try {
-        const { data: existingChunks } = await supabase
-          .from('document_chunks')
-          .select('id')
-          .eq('rams_submission_id', ramsSubmissionId)
-          .limit(1);
-
-        if (!existingChunks?.length) {
-          const chunked = await chunkAndEmbedText(rams.extracted_text);
-
-          const chunkRows = chunked.map(({ chunk, embedding }) => ({
-            rams_submission_id: ramsSubmissionId,
-            chunk_text: chunk.text,
-            chunk_index: chunk.index,
-            embedding,
-            created_at: new Date().toISOString(),
-          }));
-
-          const { error: chunkInsertError } = await supabase.from('document_chunks').insert(chunkRows);
-          if (chunkInsertError) {
-            throw new Error(`Failed to save RAMS chunks: ${chunkInsertError.message}`);
-          }
-          logger.info('Stored RAMS chunks with embeddings', {
-            ramsSubmissionId,
-            chunks: chunkRows.length,
-          });
-        }
-      } catch (err) {
-        logger.warn('Failed to store RAMS chunks (non-critical)', { error: err });
-      }
-    }
 
     // 2. Load compliance documents
     const { data: complianceDocs } = await supabase
