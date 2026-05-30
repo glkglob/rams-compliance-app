@@ -45,25 +45,36 @@ export interface APIErrorResponse {
   details?: unknown;
 }
 
+export function apiErrorResponse({
+  status,
+  error,
+  code,
+  details,
+}: {
+  status: number;
+  error: string;
+  code?: string;
+  details?: unknown;
+}): NextResponse<APIErrorResponse> {
+  // Centralized response helper to avoid leaking internal error messages.
+  return attachRequestIdHeader(NextResponse.json({ error, code, details }, { status }));
+}
+
 export function internalServerErrorResponse(): NextResponse<APIErrorResponse> {
-  return attachRequestIdHeader(NextResponse.json(
-    {
-      error: 'Internal server error',
-      code: 'INTERNAL_ERROR',
-    },
-    { status: 500 }
-  ));
+  return apiErrorResponse({
+    status: 500,
+    error: 'Internal server error',
+    code: 'INTERNAL_ERROR',
+  });
 }
 
 export function validationErrorResponse(details: unknown): NextResponse<APIErrorResponse> {
-  return attachRequestIdHeader(NextResponse.json(
-    {
-      error: 'Validation failed',
-      code: 'VALIDATION_ERROR',
-      details,
-    },
-    { status: 400 }
-  ));
+  return apiErrorResponse({
+    status: 400,
+    error: 'Validation failed',
+    code: 'VALIDATION_ERROR',
+    details,
+  });
 }
 
 export function handleAPIError(error: unknown): NextResponse<APIErrorResponse> {
@@ -77,24 +88,23 @@ export function handleAPIError(error: unknown): NextResponse<APIErrorResponse> {
       return internalServerErrorResponse();
     }
 
-    return attachRequestIdHeader(NextResponse.json(
-      { error: error.message, code: error.code },
-      { status: error.statusCode }
-    ));
+    return apiErrorResponse({
+      status: error.statusCode,
+      error: error.message,
+      code: error.code,
+    });
   }
 
   if (error instanceof ZodError) {
-    return attachRequestIdHeader(NextResponse.json(
-      {
-        error: 'Validation failed',
-        code: 'VALIDATION_ERROR',
-        details: error.issues.map(e => ({
-          field: e.path.join('.'),
-          message: e.message,
-        })),
-      },
-      { status: 400 }
-    ));
+    return apiErrorResponse({
+      status: 400,
+      error: 'Validation failed',
+      code: 'VALIDATION_ERROR',
+      details: error.issues.map(e => ({
+        field: e.path.join('.'),
+        message: e.message,
+      })),
+    });
   }
 
   return internalServerErrorResponse();

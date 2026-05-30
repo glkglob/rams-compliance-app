@@ -47,4 +47,27 @@ describe('Sentry scrub hooks', () => {
       headers: '[Filtered]',
     });
   });
+
+  it('redacts user PII fields and sensitive URL query parameters', () => {
+    const event = beforeSend(
+      {
+        type: undefined,
+        request: {
+          url: 'https://example.com/api?token=abc123&email=user@example.com&ok=true',
+        },
+        user: {
+          id: 'user-123',
+          email: 'user@example.com',
+          ip_address: '127.0.0.1',
+          username: 'secret-user',
+        },
+      },
+      {},
+    );
+
+    expect(event.request?.url).toBe(
+      'https://example.com/api?token=[Filtered]&email=[Filtered]&ok=true',
+    );
+    expect(event.user).toEqual({ id: 'user-123' });
+  });
 });

@@ -10,6 +10,8 @@ const SENSITIVE_KEY_PATTERN =
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const BEARER_PATTERN = /\bBearer\s+[A-Za-z0-9._~+/=-]+/gi;
 const JWT_PATTERN = /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g;
+const URL_SECRET_QUERY_PATTERN =
+  /([?&](?:token|access_token|refresh_token|api[-_]?key|password|sig|signature|email)=)[^&#]*/gi;
 
 export function beforeSend(event: ErrorEvent, hint: EventHint): ErrorEvent {
   void hint;
@@ -113,7 +115,7 @@ function readRequestIdFromEvent(event: Event): string | undefined {
 }
 
 function scrubSentryEvent<T>(event: T): T {
-  const scrubbed = scrubValue(event);
+  const scrubbed = stripKnownUserPii(scrubValue(event));
   return (scrubbed ?? event) as T;
 }
 
@@ -141,9 +143,27 @@ function scrubValue(value: unknown, depth = 0): unknown {
 
 function scrubString(value: string): string {
   return value
+    .replace(URL_SECRET_QUERY_PATTERN, `$1${REDACTED}`)
     .replace(BEARER_PATTERN, `Bearer ${REDACTED}`)
     .replace(JWT_PATTERN, REDACTED)
     .replace(EMAIL_PATTERN, REDACTED);
+}
+
+function stripKnownUserPii(value: unknown): unknown {
+  if (!isRecord(value) || !isRecord(value.user)) {
+    return value;
+  }
+
+  const user = value.user;
+  const scrubbedUser: Record<string, unknown> = { ...user };
+  delete scrubbedUser.email;
+  delete scrubbedUser.ip_address;
+  delete scrubbedUser.username;
+
+  return {
+    ...value,
+    user: scrubbedUser,
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

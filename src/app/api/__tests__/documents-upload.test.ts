@@ -129,8 +129,10 @@ describe('POST /api/documents/upload', () => {
 
     expect(response.status).toBe(422);
     const data = await response.json();
-    expect(data.error).toContain('Failed to extract text');
-    expect(data.error).toContain('Corrupted PDF');
+    expect(data).toEqual({
+      error: 'Unable to extract text from the uploaded document.',
+      code: 'DOCUMENT_EXTRACTION_FAILED',
+    });
   });
 
   it('handles extraction failure with non-Error rejection', async () => {
@@ -146,7 +148,10 @@ describe('POST /api/documents/upload', () => {
 
     expect(response.status).toBe(422);
     const data = await response.json();
-    expect(data.error).toContain('Unknown extraction error');
+    expect(data).toEqual({
+      error: 'Unable to extract text from the uploaded document.',
+      code: 'DOCUMENT_EXTRACTION_FAILED',
+    });
   });
 
   it('returns 400 when file is empty (size 0)', async () => {

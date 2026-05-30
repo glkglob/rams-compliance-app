@@ -32,11 +32,14 @@ export function buildCsp(nonce: string): string {
   const isDev = process.env.NODE_ENV === 'development';
   const directives = [
     "default-src 'self'",
+    // Next.js requires unsafe-eval only in development for enhanced debug stacks.
+    // It stays disabled in production where strict-dynamic + nonce is enforced.
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''}`,
-    `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com${isDev ? " 'unsafe-inline'" : ''}`,
+    `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com`,
     `font-src 'self' data: https://fonts.gstatic.com https://frontend-cdn.perplexity.ai`,
     `img-src 'self' data: blob: ${SUPABASE_HOSTS}`,
     `connect-src 'self' ${SUPABASE_HOSTS} ${SENTRY_INGEST}${isDev ? ' ws: http://localhost:* http://127.0.0.1:*' : ''}`,
+    "worker-src 'self' blob:",
     "object-src 'none'",
     "frame-ancestors 'none'",
     "base-uri 'self'",

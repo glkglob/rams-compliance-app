@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { extractText } from '@/lib/extractText';
 import { createServerSupabase } from '@/lib/db/supabase-server';
 import { createAuditLog } from '@/lib/audit/audit-log';
+import { apiErrorResponse, handleAPIError } from '@/lib/error-handling';
+import { logger } from '@/lib/logging';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
@@ -108,12 +110,16 @@ export async function POST(request: Request) {
     try {
       extractedText = await extractText(buffer, file.type, file.name);
     } catch (extractionError) {
-      const message =
-        extractionError instanceof Error ? extractionError.message : 'Unknown extraction error';
-      return NextResponse.json(
-        { error: `Failed to extract text: ${message}` },
-        { status: 422 } // Unprocessable Entity
-      );
+      logger.warn('Document text extraction failed', {
+        fileName: file.name,
+        mimeType: file.type,
+        error: extractionError instanceof Error ? extractionError.message : String(extractionError),
+      });
+      return apiErrorResponse({
+        status: 422,
+        error: 'Unable to extract text from the uploaded document.',
+        code: 'DOCUMENT_EXTRACTION_FAILED',
+      });
     }
 
     // Fire-and-forget audit log — do not block the response
@@ -130,11 +136,10 @@ export async function POST(request: Request) {
       extractedText,
       status: 'ready_for_review',
     });
-  } catch (error) {
-    console.error('[/api/documents/upload] Unexpected error:', error);
-    return NextResponse.json(
-      { error: 'An unexpected error occurred while processing the upload.' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    logger.error('Unexpected upload route failure', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return handleAPIError(error);
   }
 }

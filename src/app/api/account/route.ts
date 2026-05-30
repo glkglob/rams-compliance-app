@@ -187,7 +187,9 @@ export async function DELETE(request: Request) {
 // recovery window.  NOT exposed as a public API route.
 // -------------------------------------------------------------------------
 
-export async function hardDeleteAccount(userId: string): Promise<{ success: boolean; error?: string }> {
+export async function hardDeleteAccount(
+  userId: string
+): Promise<{ success: boolean; error?: string; code?: string }> {
   const admin = getSupabaseAdmin();
 
   try {
@@ -253,7 +255,11 @@ export async function hardDeleteAccount(userId: string): Promise<{ success: bool
     const { error: authError } = await admin.auth.admin.deleteUser(userId);
     if (authError) {
       logger.error('Hard delete: auth user deletion failed', { userId, error: String(authError) });
-      return { success: false, error: `Auth deletion failed: ${authError.message}` };
+      return {
+        success: false,
+        error: 'Hard delete failed',
+        code: 'AUTH_DELETE_FAILED',
+      };
     }
 
     logger.info('Account hard-deleted', { userId, storageObjectsDeleted });
@@ -270,7 +276,8 @@ export async function hardDeleteAccount(userId: string): Promise<{ success: bool
     });
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Hard delete failed',
+      error: 'Hard delete failed',
+      code: 'HARD_DELETE_FAILED',
     };
   }
 }

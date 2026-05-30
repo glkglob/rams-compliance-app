@@ -2,20 +2,15 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { buildCsp, STATIC_SECURITY_HEADERS } from '@/lib/security-headers';
 
+const mutableEnv = process.env as Record<string, string | undefined>;
 const originalNodeEnv = process.env.NODE_ENV;
 
 afterEach(() => {
-  Object.defineProperty(process.env, 'NODE_ENV', {
-    value: originalNodeEnv,
-    configurable: true,
-  });
+  mutableEnv.NODE_ENV = originalNodeEnv;
 });
 
 function setNodeEnv(value: string) {
-  Object.defineProperty(process.env, 'NODE_ENV', {
-    value,
-    configurable: true,
-  });
+  mutableEnv.NODE_ENV = value;
 }
 
 describe('security headers', () => {

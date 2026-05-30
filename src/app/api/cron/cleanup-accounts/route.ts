@@ -64,7 +64,13 @@ async function postCleanupAccounts(request: Request) {
   });
 
   // --- Process each account ---
-  const results: Array<{ userId: string; email: string | null; success: boolean; error?: string }> = [];
+  const results: Array<{
+    userId: string;
+    email: string | null;
+    success: boolean;
+    error?: string;
+    code?: string;
+  }> = [];
 
   for (const account of (dueAccounts as DueAccount[] | null) ?? []) {
     const result = await hardDeleteAccount(account.id);
@@ -74,6 +80,7 @@ async function postCleanupAccounts(request: Request) {
       email: account.email,
       success: result.success,
       error: result.error,
+      code: result.code,
     });
 
     if (result.success) {
