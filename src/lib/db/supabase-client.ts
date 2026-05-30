@@ -20,6 +20,7 @@ export function createClient() {
         signInWithPassword: async () => ({ data: { user: null, session: null }, error: null }),
         // Add more stubs here if other client components start using auth methods
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Build-phase no-op stub; never executed at runtime.
     } as any;
   }
 

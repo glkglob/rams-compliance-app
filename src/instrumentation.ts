@@ -12,7 +12,13 @@ export async function register() {
     // === CRITICAL: Validate environment variables as early as possible ===
     // This ensures the app fails fast during startup if required secrets are missing.
     // Build-time guards inside validateEnv() prevent this from breaking production builds.
-    if (process.env.NODE_ENV !== 'test') {
+    //
+    // Validation is skipped in two explicit cases:
+    //   - NODE_ENV === 'test'   → vitest / unit-test runs
+    //   - E2E === 'true'        → Playwright E2E runs (see playwright.config.ts)
+    // Production validation is NEVER relaxed.
+    const isTestRun = process.env.NODE_ENV === 'test' || process.env.E2E === 'true';
+    if (!isTestRun) {
       try {
         validateEnv();
       } catch (error) {
@@ -40,7 +46,7 @@ export async function register() {
 }
 
 // Called by Next.js on every server-side request error (Server Components,
-// Route Handlers, Server Actions, proxy). Forwards to Sentry with full context.
+// Route Handlers, Server Actions). Forwards to Sentry with full context.
 export const onRequestError: Instrumentation.onRequestError = async (
   err,
   request,

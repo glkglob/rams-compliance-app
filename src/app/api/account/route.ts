@@ -300,7 +300,7 @@ async function deleteAllStorageObjects(
         if (!moreItems || moreItems.length === 0) break;
 
         const moreFiles = moreItems
-          .filter((i: { id: string | null; metadata: any; name: string }) => i.id !== null || i.metadata !== null)
+          .filter((i: { id: string | null; metadata: unknown; name: string }) => i.id !== null || i.metadata !== null)
           .map((i: { name: string }) => (currentPrefix ? `${currentPrefix}${i.name}` : i.name));
 
         if (moreFiles.length > 0) {

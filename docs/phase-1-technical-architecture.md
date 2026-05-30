@@ -28,13 +28,21 @@ Key architectural priorities for Phase 1:
 - Basic `compliance_threshold` column on `projects` (INTEGER 0–100, default 80)
 - Audit logging table + helper functions
 - Role-based permission system (`admin`, `project_manager`, `reviewer`, `viewer`)
-- Protected routes and middleware (auth + CSP)
+- Protected routes (auth enforced at API layer; no middleware.ts used)
 - Dashboard stats endpoint
 - Railway + Docker production setup with standalone output
 
 ### 2.2 Gaps for Phase 1
-- No dedicated UI for managing compliance thresholds (currently only set at project creation)
-- Audit logging coverage is incomplete in several API routes
+
+> **Status update (Sprint 1 retrospective):** the threshold-editing UI and its
+> audit trail have shipped — see the project settings page
+> (`src/app/projects/[projectId]/page.tsx`) and the PATCH route
+> (`src/app/api/projects/[projectId]/route.ts`) which logs threshold changes
+> through `createAuditLog`. The gap list below reflects what remained open
+> after the Sprint 1 work; items struck through are now closed.
+
+- ~~No dedicated UI for managing compliance thresholds (currently only set at project creation)~~ **(done — Sprint 1)**
+- Audit logging coverage is incomplete in several API routes (partially addressed; project + threshold mutations now logged)
 - Role enforcement is inconsistent between UI and some API routes
 - No clear separation between "project settings" and "compliance configuration"
 - Limited visibility into project membership and role management from the UI
@@ -139,21 +147,21 @@ Do **not** build complex threshold rule engines in Phase 1.
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|----------|
-| Inconsistent RLS enforcement across new routes | Medium | High | Create a standard API route template + middleware-style permission helper |
+| Inconsistent RLS enforcement across new routes | Medium | High | Create a standard API route template + shared permission helper (no middleware used) |
 | Audit log tampering | Low | High | Make audit table append-only via RLS + database triggers |
 | Role drift between UI and API | Medium | Medium | Central permission service + tests |
 | Over-engineering thresholds too early | High | Medium | Explicitly scope to single `compliance_threshold` value in Phase 1 |
-| CSP maintenance burden | Medium | Medium | Document current policy + keep nonce + unsafe-inline approach for now |
+| CSP maintenance burden | Medium | Medium | Document current policy (static headers() CSP with unsafe-inline; no middleware/nonce approach) |
 
 ---
 
 ## 5. Recommended Phasing Within Phase 1
 
-**Sprint 1 – Foundation Hardening**
+**Sprint 1 – Foundation Hardening** _(largely complete — see Section 2.2 status update)_
 - Standardize permission checking across all project routes
 - Add membership management UI + APIs
-- Wire up audit logging for all project + membership mutations
-- Expose compliance threshold editing in project settings
+- Wire up audit logging for all project + membership mutations — **done** for project + threshold changes
+- Expose compliance threshold editing in project settings — **done**
 
 **Sprint 2 – Visibility & Polish**
 - Enhance dashboard with meaningful project-level stats

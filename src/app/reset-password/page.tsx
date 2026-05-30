@@ -19,7 +19,6 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   // Password strength (same logic as login page)
@@ -118,14 +117,7 @@ export default function ResetPasswordPage() {
             </div>
           ) : null}
 
-          {message ? (
-            <div className="mb-4 rounded-md border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
-              {message}
-            </div>
-          ) : null}
-
-          {!message && (
-            <form onSubmit={handleResetPassword} className="space-y-4">
+          <form onSubmit={handleResetPassword} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="new-password">New Password</Label>
                 <Input
@@ -177,7 +169,6 @@ export default function ResetPasswordPage() {
                 {loading ? "Updating password..." : "Update Password"}
               </Button>
             </form>
-          )}
         </CardContent>
       </Card>
     </div>

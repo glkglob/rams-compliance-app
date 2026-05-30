@@ -27,8 +27,8 @@ We recommend **3 focused sprints** (2-week cycles recommended).
 |---|-------|----------|-------|
 | S1-1 | Create `lib/auth/permissions.ts` with reusable helpers (`canManageProject`, `canViewProject`, `isAdmin`, etc.) | High | Replace scattered checks |
 | S1-2 | Audit all project-related API routes and ensure they use the new permission layer | High | Especially `/api/projects/*` |
-| S1-3 | Add audit logging for: project create/update/delete, membership changes, threshold changes | High | Use centralized audit service |
-| S1-4 | Add UI to view and edit `compliance_threshold` on project settings page | High | Currently only set at creation |
+| S1-3 | Add audit logging for: project create/update/delete, membership changes, threshold changes | High | **DONE** — `createAuditLog` used in PATCH `/api/projects/[projectId]` and membership routes |
+| S1-4 | Add UI to view and edit `compliance_threshold` on project settings page | High | **DONE** — editable in `src/app/projects/[projectId]/page.tsx`, gated by `canEditThreshold` (admin / project_manager) |
 | S1-5 | Build project membership management UI (list members, change role, remove) | Medium | Under project settings |
 | S1-6 | Add API endpoints for membership management (invite/update/remove) | High | With proper RLS + audit |
 | S1-7 | Ensure all mutating project actions are logged in `audit_logs` | High | Close current gaps |

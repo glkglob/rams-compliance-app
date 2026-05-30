@@ -105,7 +105,7 @@ async function extractFromExcel(buffer: Buffer): Promise<ExtractionResult> {
   await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
 
   let allText = "";
-  workbook.eachSheet((worksheet, _sheetId) => {
+  workbook.eachSheet((worksheet) => {
     const rows: string[] = [];
     worksheet.eachRow((row) => {
       const cells = row.values as (string | number | boolean | null | undefined)[];

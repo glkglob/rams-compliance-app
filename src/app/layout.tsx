@@ -1,14 +1,16 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import { headers } from 'next/headers';
 import { SentryUserContext } from '@/components/sentry-user-context';
 
 import './globals.css';
 
-const inter = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-});
+// NOTE: We deliberately avoid `next/font/google` here.
+// Fetching Inter from Google Fonts at build time made `next build` fail in
+// network-restricted CI/CD and Railway deploy environments. The body now uses
+// the Tailwind system font stack (`font-sans`), which is offline-safe and
+// renders consistently on macOS/Windows/Linux/iOS/Android.
+// To restore Inter (or any custom face), vendor the .woff2 files into
+// `src/app/fonts/` and switch to `next/font/local` — that keeps builds
+// reproducible without any outbound HTTP.
 
 export const metadata: Metadata = {
   title: 'RAMS Compliance Review',
@@ -39,17 +41,9 @@ export default async function RootLayout({
 }>) {
   const { userId, userEmail } = await getSessionUser();
 
-  // Read the per-request nonce set by proxy.ts. Calling headers() also opts
-  // every route into dynamic rendering, which is required now that
-  // 'unsafe-inline' is removed from script-src: each response must carry a
-  // fresh nonce that Next.js applies to its scripts. The meta tag exposes the
-  // nonce to client-side code that needs to render inline scripts.
-  const nonce = (await headers()).get('x-nonce') ?? undefined;
-
   return (
     <html lang="en" className="h-full">
-      {nonce ? <meta property="csp-nonce" content={nonce} /> : null}
-      <body className={`${inter.className} min-h-full bg-background text-foreground`}>
+      <body className="font-sans min-h-full bg-background text-foreground antialiased">
         <SentryUserContext userId={userId} userEmail={userEmail} />
         <div className="flex min-h-screen flex-col">
           <main className="flex-1 bg-background">{children}</main>

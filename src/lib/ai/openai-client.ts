@@ -5,7 +5,6 @@ import {
   openAICircuitBreaker,
   withRetry,
   CircuitOpenError,
-  type RetryOptions,
 } from '@/lib/ai/openai-resilience';
 
 let openaiInstance: OpenAI | null = null;

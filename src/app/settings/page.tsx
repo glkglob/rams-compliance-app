@@ -92,7 +92,7 @@ export default function SettingsPage() {
       setTimeout(() => {
         window.location.href = '/';
       }, 2500);
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred while deleting your account.');
       setDeleting(false);
     }

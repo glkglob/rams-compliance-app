@@ -33,7 +33,14 @@ export default function LoginPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  // Computed during render so we don't setState inside an effect.
+  const [message, setMessage] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    return params.get("reset") === "success"
+      ? "Password reset successful. Please sign in with your new password."
+      : null;
+  });
   const [resetCooldown, setResetCooldown] = useState(0);
 
   // Password strength calculator (only used in sign-up)
@@ -60,8 +67,11 @@ export default function LoginPage() {
   ];
 
   // Improved error message mapping
-  function getFriendlyErrorMessage(error: any): string {
-    const message = error?.message || "Something went wrong. Please try again.";
+  function getFriendlyErrorMessage(error: unknown): string {
+    const errMessage =
+      (error as { message?: string } | null)?.message ||
+      "Something went wrong. Please try again.";
+    const message = errMessage;
 
     if (message.includes("Invalid login credentials")) {
       return "Incorrect email or password. Please try again.";
@@ -95,17 +105,18 @@ export default function LoginPage() {
     checkSession();
   }, [supabase, router]);
 
-  // Show success message if coming from password reset
+  // Show success message if coming from password reset.
+  // Computed during render via useState initializer so we don't call setState
+  // inside an effect (satisfies react-hooks/set-state-in-effect). The URL
+  // cleanup still happens in an effect because router.replace is a side effect.
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (message && typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("reset") === "success") {
-        setMessage("Password reset successful. Please sign in with your new password.");
-        // Clean the URL
         router.replace("/login", { scroll: false });
       }
     }
-  }, [router]);
+  }, [message, router]);
 
   function validateForm(): string | null {
     if (!email || !password) {

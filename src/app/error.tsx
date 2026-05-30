@@ -4,10 +4,10 @@ import { useEffect } from 'react';
 
 export default function ErrorPage({
   error,
-  unstable_retry,
+  reset,
 }: {
   error: Error & { digest?: string };
-  unstable_retry: () => void;
+  reset: () => void;
 }) {
   useEffect(() => {
     // Lazy load Sentry to prevent build-time context issues
@@ -29,7 +29,7 @@ export default function ErrorPage({
           )}
         </p>
         <button
-          onClick={unstable_retry}
+          onClick={reset}
           className="inline-flex items-center px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
         >
           Try again

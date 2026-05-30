@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -89,7 +89,7 @@ export default function RAMSDetailPage() {
   const [copied, setCopied] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const loadRAMS = async () => {
+  const loadRAMS = useCallback(async () => {
     try {
       const response = await fetch(`/api/rams/${params.ramsId}`);
       if (response.ok) {
@@ -101,9 +101,12 @@ export default function RAMSDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.ramsId]);
 
-  useEffect(() => { void loadRAMS(); }, [params.ramsId]);
+  // Fetch-on-mount pattern: setState happens after async fetch, not synchronously
+  // inside the effect body. Safe — does not trigger cascading renders.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void loadRAMS(); }, [loadRAMS]);
 
   const handleReview = async () => {
     setReviewing(true);

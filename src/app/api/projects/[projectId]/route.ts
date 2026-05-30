@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { canManageProject } from "@/lib/auth/permissions";
@@ -89,12 +88,9 @@ export async function PATCH(request: Request, { params }: ProjectRouteContext) {
       throw new UnauthorizedError();
     }
 
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
+    // Authorization is delegated entirely to canManageProject(), which checks
+    // the project_members table and global roles. The earlier profiles lookup
+    // was leftover from an older role-check approach and is no longer needed.
     const canManage = await canManageProject(projectId);
     if (!canManage) {
       throw new ForbiddenError();

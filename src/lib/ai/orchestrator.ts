@@ -71,23 +71,43 @@ export async function orchestrateRAMSReview(
       .select('*')
       .eq('project_id', project.id);
 
+    type ComplianceRequirementRow = {
+      id: string;
+      requirement_code: string;
+      requirement_text: string;
+      category: string;
+      severity: string;
+      source_document_id: string | null;
+      source_excerpt: string | null;
+    };
+    type ComplianceDocRow = {
+      id: string;
+      file_name: string;
+      document_category: string;
+      extracted_text: string | null;
+    };
+
     if (existingRequirements && existingRequirements.length > 0) {
-      requirements = existingRequirements.map((r: any) => {
+      requirements = (existingRequirements as ComplianceRequirementRow[]).map((r) => {
         requirementDbIds.set(r.requirement_code, r.id);
         return {
           requirementCode: r.requirement_code,
           requirementText: r.requirement_text,
           category: r.category,
-          severity: r.severity,
-          sourceDocumentId: r.source_document_id,
+          // DB severity is a free-form text column at the schema layer but
+          // populated by the LLM only with the enum values. Narrow here so the
+          // downstream type stays strict; an unknown value would still flow
+          // through (no runtime change vs the previous `as any` cast).
+          severity: r.severity as 'critical' | 'major' | 'minor',
+          sourceDocumentId: r.source_document_id ?? '',
           sourceDocumentName: '',
-          sourceExcerpt: r.source_excerpt,
+          sourceExcerpt: r.source_excerpt ?? '',
         };
       });
     } else {
       const extractionResult = await extractRequirements({
         projectId: project.id,
-        documents: complianceDocs.map((doc: any) => ({
+        documents: (complianceDocs as ComplianceDocRow[]).map((doc) => ({
           documentId: doc.id,
           fileName: doc.file_name,
           category: doc.document_category,
@@ -104,7 +124,7 @@ export async function orchestrateRAMSReview(
         const { data: insertedReqs, error: reqInsertError } = await supabase
           .from('compliance_requirements')
           .insert(
-            requirements.map((req: any) => ({
+            requirements.map((req) => ({
               project_id: project.id,
               source_document_id: req.sourceDocumentId,
               requirement_code: req.requirementCode,
@@ -186,7 +206,7 @@ export async function orchestrateRAMSReview(
     // 9. Save review checks
     if (comparison.checks.length > 0) {
       const checkRows = comparison.checks
-        .map((check: any) => {
+        .map((check) => {
           // Look up the DB UUID for this requirement code
           const dbId = requirementDbIds.get(check.requirementId) ?? null;
           return {
@@ -200,7 +220,7 @@ export async function orchestrateRAMSReview(
           };
         })
         // Only insert checks that resolved to a valid DB requirement
-        .filter((row: any) => row.requirement_id !== null);
+        .filter((row) => row.requirement_id !== null);
 
       if (checkRows.length > 0) {
         const { error: checksInsertError } = await supabase

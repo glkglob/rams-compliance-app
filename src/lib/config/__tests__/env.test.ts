@@ -4,6 +4,7 @@ import { validateEnv } from '../env';
 
 const BASE_ENV: Record<string, string | undefined> = {
   NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-key',
   SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
   OPENAI_API_KEY: 'openai-key',
   RESEND_API_KEY: 'resend-key',
@@ -13,7 +14,6 @@ const BASE_ENV: Record<string, string | undefined> = {
 
 const MANAGED_KEYS = [
   'NEXT_PUBLIC_SUPABASE_URL',
-  'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
   'NEXT_PUBLIC_SUPABASE_ANON_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
   'OPENAI_API_KEY',
@@ -22,6 +22,7 @@ const MANAGED_KEYS = [
   'DATABASE_URL',
   'UPSTASH_REDIS_REST_URL',
   'UPSTASH_REDIS_REST_TOKEN',
+  'APP_URL',
 ];
 
 function setEnv(overrides: Record<string, string | undefined>) {
@@ -44,21 +45,18 @@ afterEach(() => {
 });
 
 describe('validateEnv', () => {
-  it('treats an empty-string publishable key as undefined and falls back to the anon key', () => {
-    setEnv({
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: '',
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-key',
-    });
+  it('validates a fully-populated env and returns the parsed object', () => {
+    setEnv({});
 
     const env = validateEnv();
 
-    expect(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY).toBeUndefined();
+    expect(env.NEXT_PUBLIC_SUPABASE_URL).toBe('https://example.supabase.co');
     expect(env.NEXT_PUBLIC_SUPABASE_ANON_KEY).toBe('anon-key');
+    expect(env.SUPABASE_SERVICE_ROLE_KEY).toBe('service-role-key');
   });
 
-  it('does not throw when an optional URL var is an empty string', () => {
+  it('treats an empty-string optional URL var as undefined', () => {
     setEnv({
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'pub-key',
       UPSTASH_REDIS_REST_URL: '',
       UPSTASH_REDIS_REST_TOKEN: '',
     });
@@ -69,12 +67,19 @@ describe('validateEnv', () => {
     expect(env.UPSTASH_REDIS_REST_TOKEN).toBeUndefined();
   });
 
-  it('still requires at least one public Supabase key', () => {
+  it('throws when NEXT_PUBLIC_SUPABASE_ANON_KEY is missing', () => {
     setEnv({
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: '',
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: '   ',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined,
     });
 
-    expect(() => validateEnv()).toThrow(/public key/i);
+    expect(() => validateEnv()).toThrow(/NEXT_PUBLIC_SUPABASE_ANON_KEY/);
+  });
+
+  it('throws when NEXT_PUBLIC_SUPABASE_ANON_KEY is blank', () => {
+    setEnv({
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: '',
+    });
+
+    expect(() => validateEnv()).toThrow(/NEXT_PUBLIC_SUPABASE_ANON_KEY/);
   });
 });

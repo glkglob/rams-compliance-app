@@ -49,13 +49,33 @@ export default function ProjectDetailsPage() {
 
   const canEditThreshold = project?.currentUserRole === "admin" || project?.currentUserRole === "project_manager";
 
-  // Project members (for Settings tab)
-  const [members, setMembers] = useState<Array<{ id: string; role: string; profiles: { full_name: string | null; email: string | null } | null }>>([]);
+  // Project members (for Settings tab).
+  // The Supabase nested-join result type is complex; we cast to this shape at
+  // the call boundary (one cast per query) rather than threading the generated
+  // Database type through every component.
+  type ProjectMember = {
+    id: string;
+    role: string;
+    profiles: { full_name: string | null; email: string | null } | null;
+  };
+  const [members, setMembers] = useState<ProjectMember[]>([]);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
   const [updatingRoleMemberId, setUpdatingRoleMemberId] = useState<string | null>(null);
 
-  // Recent Activity (for Settings tab)
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  // Recent Activity (for Settings tab) — shape mirrors the audit_logs table row.
+  // `details` carries action-specific payloads (e.g. { newThreshold } for
+  // threshold updates); keep it loosely-typed so the UI can switch on action.
+  type RecentActivityEntry = {
+    id: string;
+    action: string;
+    created_at: string;
+    actor_email?: string | null;
+    target_type?: string | null;
+    target_id?: string | null;
+    metadata?: Record<string, unknown> | null;
+    details?: { newThreshold?: number | string; [key: string]: unknown } | null;
+  };
+  const [recentActivity, setRecentActivity] = useState<RecentActivityEntry[]>([]);
 
   // Invite member state (Settings tab)
   const [inviteEmail, setInviteEmail] = useState("");
@@ -98,7 +118,7 @@ export default function ProjectDetailsPage() {
           .order("created_at", { ascending: true });
 
         if (memberData) {
-          setMembers(memberData as any);
+          setMembers(memberData as unknown as ProjectMember[]);
         }
 
         // Load recent activity (audit logs) - especially threshold changes
@@ -175,7 +195,7 @@ export default function ProjectDetailsPage() {
         .eq("project_id", projectId)
         .order("created_at", { ascending: true });
 
-      if (memberData) setMembers(memberData as any);
+      if (memberData) setMembers(memberData as unknown as ProjectMember[]);
     } catch (err) {
       console.error(err);
       alert(err instanceof Error ? err.message : "Failed to remove member");
@@ -206,7 +226,7 @@ export default function ProjectDetailsPage() {
         .eq("project_id", projectId)
         .order("created_at", { ascending: true });
 
-      if (memberData) setMembers(memberData as any);
+      if (memberData) setMembers(memberData as unknown as ProjectMember[]);
     } catch (err) {
       console.error(err);
       alert(err instanceof Error ? err.message : "Failed to update role");
@@ -242,7 +262,7 @@ export default function ProjectDetailsPage() {
         .eq("project_id", projectId)
         .order("created_at", { ascending: true });
 
-      if (memberData) setMembers(memberData as any);
+      if (memberData) setMembers(memberData as unknown as ProjectMember[]);
 
       alert("Member invited successfully!");
     } catch (err) {
@@ -517,7 +537,11 @@ export default function ProjectDetailsPage() {
                       />
                       <select
                         value={inviteRole}
-                        onChange={(e) => setInviteRole(e.target.value as any)}
+                        onChange={(e) =>
+                          setInviteRole(
+                            e.target.value as "viewer" | "reviewer" | "project_manager",
+                          )
+                        }
                         className="rounded border bg-background px-2 text-sm"
                       >
                         <option value="viewer">Viewer</option>

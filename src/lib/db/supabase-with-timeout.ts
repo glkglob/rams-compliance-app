@@ -19,6 +19,7 @@ export async function createServerSupabaseWithTimeout(timeoutMs: number = 10000)
       from: () => ({
         select: () => Promise.resolve({ data: [], error: null }),
       }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Build-phase no-op stub; never executed at runtime.
     } as any;
   }
 
@@ -26,7 +27,10 @@ export async function createServerSupabaseWithTimeout(timeoutMs: number = 10000)
   const { supabaseUrl, supabaseKey } = getSupabaseEnv();
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  // The timeout intentionally outlives this function — the AbortController
+  // aborts in-flight fetches whenever it fires, and the timer is GC'd with the
+  // controller after the request finishes. See note below.
+  void setTimeout(() => controller.abort(), timeoutMs);
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
     cookies: {

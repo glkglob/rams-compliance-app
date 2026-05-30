@@ -9,22 +9,15 @@ const nextConfig: NextConfig = {
   // Enables minimal standalone output for Docker/Railway deploys (much smaller images, faster cold starts).
   output: 'standalone',
 
-  experimental: {
-    // Prevents the /_global-error prerender crash with @sentry/nextjs + Next.js 16
-    prerenderEarlyExit: false,
-  },
-
-  // NOTE: Per-request security headers (including a nonce-based CSP) are set in
-  // src/middleware.ts on every matched response. The headers below are a
-  // defence-in-depth fallback that applies to paths the middleware does NOT
-  // match (Next static assets, images, favicon). The middleware's nonce-based
-  // CSP supersedes the static CSP defined here for all app routes.
+  // Security headers (including CSP) applied to all responses.
+  // Note: No middleware.ts is used in this project. All security headers are
+  // provided here via the headers() function (applies to every route).
   async headers() {
     const sentryIngest = 'https://*.ingest.de.sentry.io https://*.ingest.sentry.io';
     const supabaseHosts = 'https://*.supabase.co wss://*.supabase.co';
 
-    // Fallback CSP for static assets (/_next/static, images, etc.) that the middleware
-    // does not intercept. Keep this in sync with the dynamic CSP in src/proxy.ts.
+    // CSP uses 'unsafe-inline' + 'unsafe-eval' because no per-request nonce
+    // middleware is present. This is the primary (and only) CSP for the app.
     const csp = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",

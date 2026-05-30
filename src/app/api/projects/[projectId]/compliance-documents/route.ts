@@ -63,7 +63,7 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
     if (uploadError) {
       logger.error("Supabase storage upload failed", {
         error: uploadError.message,
-        statusCode: (uploadError as any).statusCode,
+        statusCode: (uploadError as { statusCode?: number }).statusCode,
         storagePath,
         bucket: "documents",
       });
@@ -175,7 +175,7 @@ export async function GET(_request: Request, { params }: ProjectDocsContext) {
     }
 
     const documentsWithUrls = await Promise.all(
-      (documents ?? []).map(async (doc: { storage_path: string; [key: string]: any }) => ({
+      (documents ?? []).map(async (doc: { storage_path: string; [key: string]: unknown }) => ({
         ...doc,
         file_url: await getDocumentSignedUrl(supabase, doc.storage_path),
       }))

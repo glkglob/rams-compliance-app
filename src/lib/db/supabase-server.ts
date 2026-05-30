@@ -21,6 +21,7 @@ export async function createServerSupabase() {
         select: () => Promise.resolve({ data: [], error: null }),
         // Add other chainable methods as no-ops if needed in the future.
       }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Build-phase no-op stub; never executed at runtime.
     } as any;
   }
 

@@ -98,7 +98,7 @@ export function ComplianceDocumentsTab({ projectId }: { projectId: string }) {
             variant: "destructive",
           });
         }
-      } catch (error) {
+      } catch {
         addToast({
           title: "Upload failed",
           description: "Network error — check your connection and try again.",
@@ -126,6 +126,9 @@ export function ComplianceDocumentsTab({ projectId }: { projectId: string }) {
   }, [projectId]);
 
   useEffect(() => {
+    // Fetch-on-mount pattern: setState happens after async fetch, not
+    // synchronously inside the effect body. Safe — no cascading renders.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadDocuments();
   }, [loadDocuments]);
 
