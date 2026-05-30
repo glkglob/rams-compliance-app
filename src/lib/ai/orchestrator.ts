@@ -151,7 +151,10 @@ export async function orchestrateRAMSReview(
             created_at: new Date().toISOString(),
           }));
 
-          await supabase.from('document_chunks').insert(chunkRows);
+          const { error: chunkInsertError } = await supabase.from('document_chunks').insert(chunkRows);
+          if (chunkInsertError) {
+            throw new Error(`Failed to save RAMS chunks: ${chunkInsertError.message}`);
+          }
           logger.info('Stored RAMS chunks with embeddings', {
             ramsSubmissionId,
             chunks: chunkRows.length,
