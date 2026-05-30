@@ -13,9 +13,15 @@ import type { DocumentProcessingPayload } from '@/lib/jobs/document-queue';
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
-// ~800 tokens with overlap, approximated in characters (≈4 chars/token).
-const CHUNK_SIZE_CHARS = 3200;
-const CHUNK_OVERLAP_CHARS = 400;
+// Chunk sizing is token-aware: we target ~800 tokens per chunk with ~100 tokens
+// of overlap. chunkText() works in characters, so we convert using the standard
+// ~4 chars/token heuristic (see estimateTokens in chunk-text.ts). This keeps
+// each chunk comfortably inside text-embedding-3-small's 8191-token input limit.
+const TARGET_CHUNK_TOKENS = 800;
+const CHUNK_OVERLAP_TOKENS = 100;
+const CHARS_PER_TOKEN = 4;
+const CHUNK_SIZE_CHARS = TARGET_CHUNK_TOKENS * CHARS_PER_TOKEN; // 3200
+const CHUNK_OVERLAP_CHARS = CHUNK_OVERLAP_TOKENS * CHARS_PER_TOKEN; // 400
 
 /**
  * Authorize the incoming request. Accepts either a valid QStash signature
@@ -176,7 +182,9 @@ export async function POST(request: Request) {
           source_document_id: req.sourceDocumentId,
           requirement_code: req.requirementCode,
           requirement_text: req.requirementText,
-          category: document.document_category ?? 'other',
+          // Prefer the LLM's per-requirement category; fall back to the
+          // document-level category only when the model didn't provide one.
+          category: req.category ?? document.document_category ?? 'other',
           severity: req.severity,
           source_excerpt: req.sourceExcerpt,
         })),
