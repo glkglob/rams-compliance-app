@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
+import { logger } from "@/lib/logging";
 
 interface DashboardStats {
   totalProjects: number;
@@ -49,8 +50,9 @@ export async function GET() {
         ]);
 
       if (projectError || ramsError) {
+        logger.error("Failed to load admin stats", { error: projectError?.message ?? ramsError?.message });
         return NextResponse.json(
-          { error: projectError?.message ?? ramsError?.message ?? "Failed to load stats" },
+          { error: "Internal server error" },
           { status: 500 }
         );
       }
@@ -82,7 +84,8 @@ export async function GET() {
       .eq("user_id", user.id);
 
     if (membershipError) {
-      return NextResponse.json({ error: membershipError.message }, { status: 500 });
+      logger.error("Failed to fetch memberships for stats", { error: membershipError.message });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     const projectIds = memberships?.map((membership: { project_id: string }) => membership.project_id) ?? [];
@@ -97,7 +100,8 @@ export async function GET() {
       .in("project_id", projectIds);
 
     if (ramsError) {
-      return NextResponse.json({ error: ramsError.message }, { status: 500 });
+      logger.error("Failed to fetch RAMS stats", { error: ramsError.message });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     return NextResponse.json(

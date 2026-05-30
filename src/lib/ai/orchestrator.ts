@@ -78,7 +78,8 @@ async function getRelevantRequirements(
     }
 
     // Get unique source document IDs from the relevant chunks
-    const documentIds = [...new Set((chunks as any[]).map((c) => c.document_id).filter(Boolean))];
+    const typedChunks = chunks as Array<{ document_id?: string }>;
+    const documentIds = [...new Set(typedChunks.map((c) => c.document_id).filter(Boolean))];
 
     if (documentIds.length === 0) return [];
 
@@ -299,25 +300,37 @@ export async function orchestrateRAMSReview(
         .filter((r) => r.requirement_id !== null);
 
       if (checkRows.length > 0) {
-        await supabase.from('review_checks').insert(checkRows);
+        const { error: checksError } = await supabase.from('review_checks').insert(checkRows);
+        if (checksError) {
+          logger.error('Failed to persist review checks', { ramsSubmissionId, error: checksError.message });
+          return { success: false, error: 'Failed to persist review checks' };
+        }
       }
     }
 
     // 9. Persist email draft
-    await supabase.from('generated_emails').insert({
+    const { error: emailError } = await supabase.from('generated_emails').insert({
       rams_submission_id: ramsSubmissionId,
       subject: emailDraft.subject,
       body: emailDraft.body,
       sent: false,
     });
+    if (emailError) {
+      logger.error('Failed to persist email draft', { ramsSubmissionId, error: emailError.message });
+      return { success: false, error: 'Failed to persist email draft' };
+    }
 
     // 10. Update RAMS summary
-    await supabase.from('rams_submissions').update({
+    const { error: summaryError } = await supabase.from('rams_submissions').update({
       review_status: scoring.decision,
       compliance_score: scoring.complianceScore,
       confidence_score: scoring.confidenceScore,
       decision_explanation: explanation.summary,
     }).eq('id', ramsSubmissionId);
+    if (summaryError) {
+      logger.error('Failed to update RAMS summary', { ramsSubmissionId, error: summaryError.message });
+      return { success: false, error: 'Failed to update RAMS summary' };
+    }
 
     // 11. Audit
     await createAuditLog('REVIEW_RAMS', 'rams_submission', ramsSubmissionId, {

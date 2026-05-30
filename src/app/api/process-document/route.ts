@@ -97,6 +97,11 @@ export async function POST(request: Request) {
     if (docError || !document) {
       throw new Error(`Document not found: ${docError?.message ?? documentId}`);
     }
+    if (document.project_id !== projectId) {
+      throw new Error(
+        `Payload projectId (${projectId}) does not match document project_id (${document.project_id})`,
+      );
+    }
     if (!document.storage_path) {
       throw new Error('Document has no storage_path');
     }
@@ -243,6 +248,6 @@ export async function POST(request: Request) {
       .update({ extraction_status: 'failed' })
       .eq('id', documentId);
 
-    return NextResponse.json({ error: 'Processing failed', detail: message }, { status: 500 });
+    return NextResponse.json({ error: 'Processing failed' }, { status: 500 });
   }
 }

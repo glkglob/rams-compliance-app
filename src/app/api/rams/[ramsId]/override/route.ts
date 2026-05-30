@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
+import { logger } from "@/lib/logging";
 import { z } from "zod";
 
 const overrideSchema = z.object({
@@ -72,7 +73,8 @@ export async function POST(request: Request, { params }: Context) {
       .eq("id", ramsId);
 
     if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      logger.error("Failed to update RAMS override", { error: updateError.message, ramsId });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     await supabase.from("rams_reviews").insert({

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
+import { logger } from "@/lib/logging";
 
 export interface ActivityEntry {
   id: string;
@@ -56,7 +57,8 @@ export async function GET() {
     const { data, error } = await query;
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      logger.error("Failed to fetch activity logs", { error: error.message });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
     return NextResponse.json(data ?? [], { status: 200 });
