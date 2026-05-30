@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/db/supabase-client';
+import { ROLE_DISPLAY_NAMES, type UserRole } from '@/lib/auth/roles';
 
 // Force dynamic rendering — requires runtime auth + Supabase.
 export const dynamic = 'force-dynamic';
@@ -57,14 +58,17 @@ export default function SettingsPage() {
         setProfile({
           email: user.email || profileData?.email || '—',
           full_name: profileData?.full_name ?? null,
-          role: profileData?.role || 'user',
+          // Use the stored role; fall back to 'viewer' (the DB default) only if
+          // the profile row exists but role is somehow null. The backfill migration
+          // ensures all authenticated users have a profile row.
+          role: profileData?.role ?? 'viewer',
         });
       } catch {
         // Non-fatal; show fallback
         setProfile({
           email: '—',
           full_name: null,
-          role: 'user',
+          role: 'viewer',
         });
       } finally {
         setLoading(false);
@@ -148,7 +152,11 @@ export default function SettingsPage() {
           </div>
           <div>
             <span className="text-muted-foreground">Role:</span>{' '}
-            <span className="font-medium capitalize">{profile?.role ?? '—'}</span>
+            <span className="font-medium">
+              {profile?.role
+                ? (ROLE_DISPLAY_NAMES[profile.role as UserRole] ?? profile.role)
+                : '—'}
+            </span>
           </div>
           <p className="pt-2 text-xs text-muted-foreground">
             Profile editing will be available in a future update. Contact your administrator to change roles.

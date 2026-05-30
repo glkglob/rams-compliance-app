@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAuditLog } from "@/lib/audit/audit-log";
+import { OVERRIDE_ALLOWED_ROLES } from "@/lib/auth/roles";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
 import { logger } from "@/lib/logging";
@@ -31,8 +32,12 @@ export async function POST(request: Request, { params }: Context) {
       .eq("id", user.id)
       .single();
 
-    if (!profile || !["admin", "project_manager"].includes(profile.role)) {
-      throw new ForbiddenError("Forbidden – admin or project_manager role required");
+    // CDM 2015: principal_designer and principal_contractor share override rights
+    // with admin and the legacy project_manager role.
+    if (!profile || !(OVERRIDE_ALLOWED_ROLES as readonly string[]).includes(profile.role)) {
+      throw new ForbiddenError(
+        "Forbidden – admin, principal_designer, or principal_contractor role required"
+      );
     }
 
     const body = await request.json();
