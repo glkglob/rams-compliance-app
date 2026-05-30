@@ -36,6 +36,12 @@ RUN npm ci && npm cache clean --force
 FROM base AS builder
 WORKDIR /app
 
+# Ensure /app/public always exists. The public/ directory may be empty (Git
+# does not track empty directories), so COPY . . may not create it. The
+# runner stage later does `COPY --from=builder /app/public ./public`, which
+# fails if the source path is missing.
+RUN mkdir -p /app/public
+
 # Bring in deps from previous stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
