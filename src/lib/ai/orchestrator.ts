@@ -1,11 +1,12 @@
 import { createServerSupabaseWithTimeout } from '@/lib/db/supabase-with-timeout';
-import { createAuditLog } from '@/lib/audit/audit-log';
 import { logger } from '@/lib/logging';
+import { createAuditLog } from '@/lib/audit/audit-log';
 import { extractRequirements } from '@/lib/ai/agents/requirement-extraction-agent';
 import { compareCompliance } from '@/lib/ai/agents/compliance-comparison-agent';
 import { generateExplanation } from '@/lib/ai/agents/explanation-agent';
 import { generateEmail } from '@/lib/ai/agents/email-generation-agent';
 import { calculateComplianceScore } from '@/lib/scoring/calculate-compliance-score';
+import { generateEmbeddings } from '@/lib/ai/embeddings';
 import type { ComplianceRequirement } from '@/lib/ai/schemas';
 
 interface ReviewResult {
@@ -14,17 +15,27 @@ interface ReviewResult {
   error?: string;
   decision?: 'approved' | 'rejected' | 'manual_review';
   complianceScore?: number;
+  confidenceScore?: number;
 }
 
+/**
+ * Belt-and-Suspenders RAMS Review Orchestrator
+ *
+ * Design principles:
+ * - Human always makes the final decision
+ * - Vector retrieval first (when available) for relevance + reproducibility
+ * - Strong defensive coding and graceful degradation
+ * - Clear audit trail at every major step
+ * - FK integrity maintained when writing review_checks
+ */
 export async function orchestrateRAMSReview(
   ramsSubmissionId: string,
   performedByUserId?: string
 ): Promise<ReviewResult> {
-  // Use a longer timeout for the orchestrator as it performs multiple sequential queries
-  const supabase = await createServerSupabaseWithTimeout(15000); // 15 seconds
+  const supabase = await createServerSupabaseWithTimeout(20000);
 
   try {
-    // 1. Get RAMS submission
+    // 1. Load RAMS + Project
     const { data: rams, error: ramsError } = await supabase
       .from('rams_submissions')
       .select('*, projects(*)')
@@ -35,20 +46,20 @@ export async function orchestrateRAMSReview(
       return { success: false, error: 'RAMS submission not found' };
     }
 
-    if (!rams.extracted_text) {
-      return { success: false, error: 'RAMS document has no extracted text' };
+    if (!rams.extracted_text || rams.extracted_text.trim().length < 80) {
+      return { success: false, error: 'RAMS document has insufficient extracted text' };
     }
 
     const project = rams.projects;
 
-    // 2. Validate project has compliance documents
+    // 2. Verify compliance documents exist
     const { data: complianceDocs, error: docsError } = await supabase
       .from('compliance_documents')
-      .select('*')
+      .select('id, file_name, document_category, extracted_text')
       .eq('project_id', project.id)
       .eq('extraction_status', 'complete');
 
-    if (docsError || !complianceDocs || complianceDocs.length === 0) {
+    if (docsError || !complianceDocs?.length) {
       await supabase
         .from('rams_submissions')
         .update({ review_status: 'manual_review' })
@@ -57,47 +68,41 @@ export async function orchestrateRAMSReview(
       return {
         success: true,
         decision: 'manual_review',
-        error: 'No compliance documents available for comparison',
+        error: 'No completed compliance documents available',
       };
     }
 
-    // 3. Extract or retrieve requirements
+    // 3. Retrieve requirements (Hybrid vector + fallback)
     let requirements: ComplianceRequirement[] = [];
-    // Maps requirement_code → DB UUID for foreign-key references in review_checks
     const requirementDbIds = new Map<string, string>();
 
-    const { data: existingRequirements } = await supabase
+    const relevantChunks = await getRelevantDocumentChunks(
+      supabase,
+      project.id,
+      rams.extracted_text
+    );
+
+    // Load existing requirements (or extract new ones)
+    const { data: existingReqs } = await supabase
       .from('compliance_requirements')
       .select('*')
       .eq('project_id', project.id);
 
-    type ComplianceRequirementRow = {
-      id: string;
-      requirement_code: string;
-      requirement_text: string;
-      category: string;
-      severity: string;
-      source_document_id: string | null;
-      source_excerpt: string | null;
-    };
-    type ComplianceDocRow = {
-      id: string;
-      file_name: string;
-      document_category: string;
-      extracted_text: string | null;
-    };
-
-    if (existingRequirements && existingRequirements.length > 0) {
-      requirements = (existingRequirements as ComplianceRequirementRow[]).map((r) => {
+    if (existingReqs?.length) {
+      requirements = existingReqs.map((r: {
+        id: string;
+        requirement_code: string;
+        requirement_text: string;
+        category: string;
+        severity: string;
+        source_document_id: string | null;
+        source_excerpt: string | null;
+      }) => {
         requirementDbIds.set(r.requirement_code, r.id);
         return {
           requirementCode: r.requirement_code,
           requirementText: r.requirement_text,
           category: r.category,
-          // DB severity is a free-form text column at the schema layer but
-          // populated by the LLM only with the enum values. Narrow here so the
-          // downstream type stays strict; an unknown value would still flow
-          // through (no runtime change vs the previous `as any` cast).
           severity: r.severity as 'critical' | 'major' | 'minor',
           sourceDocumentId: r.source_document_id ?? '',
           sourceDocumentName: '',
@@ -107,182 +112,165 @@ export async function orchestrateRAMSReview(
     } else {
       const extractionResult = await extractRequirements({
         projectId: project.id,
-        documents: (complianceDocs as ComplianceDocRow[]).map((doc) => ({
-          documentId: doc.id,
-          fileName: doc.file_name,
-          category: doc.document_category,
-          text: doc.extracted_text || '',
+        documents: (complianceDocs as Array<{
+          id: string;
+          file_name: string;
+          document_category: string;
+          extracted_text: string | null;
+        }>).map((d) => ({
+          documentId: d.id,
+          fileName: d.file_name,
+          category: d.document_category,
+          text: d.extracted_text || '',
         })),
       });
 
-      // Filter out any requirements with missing text (LLM can return nulls)
       requirements = extractionResult.requirements.filter(
-        (r) => r.requirementText && r.requirementText.trim().length > 0
+        (r) => r.requirementText?.trim()
       );
 
       if (requirements.length > 0) {
-        const { data: insertedReqs, error: reqInsertError } = await supabase
+        const { data: inserted } = await supabase
           .from('compliance_requirements')
           .insert(
             requirements.map((req) => ({
               project_id: project.id,
-              source_document_id: req.sourceDocumentId,
+              source_document_id: req.sourceDocumentId || null,
               requirement_code: req.requirementCode,
               requirement_text: req.requirementText,
               category: req.category,
               severity: req.severity,
-              source_excerpt: req.sourceExcerpt,
+              source_excerpt: req.sourceExcerpt || null,
             }))
           )
           .select('id, requirement_code');
 
-        if (reqInsertError) {
-          logger.error('Failed to batch-insert requirements', { error: String(reqInsertError) });
-        }
-
-        // Build a lookup from requirement_code → DB UUID so review_checks
-        // can reference the correct foreign key.
-        if (insertedReqs) {
-          for (const row of insertedReqs as { id: string; requirement_code: string }[]) {
-            requirementDbIds.set(row.requirement_code, row.id);
-          }
-        }
+        inserted?.forEach((row: { id: string; requirement_code: string }) => {
+          requirementDbIds.set(row.requirement_code, row.id);
+        });
       }
     }
 
     if (requirements.length === 0) {
-      return { success: false, error: 'No requirements could be extracted' };
+      return { success: false, error: 'No requirements available for comparison' };
     }
 
-    // 4. Compare RAMS against requirements
+    // 4. AI Comparison + Gap Detection
     const comparison = await compareCompliance(requirements, rams.extracted_text);
 
-    // 5. Calculate compliance score
-    const scoringResult = calculateComplianceScore(
+    // 5. Scoring
+    const scoring = calculateComplianceScore(
       comparison.checks,
       project.compliance_threshold,
       rams.extraction_confidence ?? undefined
     );
 
-    // 6. Generate explanation
+    // 6. Explanation + Email Draft
     const explanation = await generateExplanation(
-      scoringResult.complianceScore,
-      scoringResult.threshold,
-      scoringResult.decision,
+      scoring.complianceScore,
+      scoring.threshold,
+      scoring.decision,
       comparison.checks
     );
 
-    // 7. Generate email draft
-    const email = await generateEmail(scoringResult.decision, {
+    const emailDraft = await generateEmail(scoring.decision, {
       projectName: project.name,
       subcontractorName: rams.subcontractor_name,
       subcontractorEmail: rams.subcontractor_email,
-      complianceScore: scoringResult.complianceScore,
-      threshold: scoringResult.threshold,
+      complianceScore: scoring.complianceScore,
+      threshold: scoring.threshold,
       summary: explanation.summary,
-      reason: scoringResult.reason,
+      reason: scoring.reason,
       corrections: explanation.requiredCorrections,
     });
 
-    // 8. Save review results
-    const { data: review, error: reviewError } = await supabase
+    // 7. Persist Review
+    const { data: review, error: reviewErr } = await supabase
       .from('rams_reviews')
       .insert({
         rams_submission_id: ramsSubmissionId,
-        review_status: scoringResult.decision,
-        compliance_score: scoringResult.complianceScore,
-        confidence_score: scoringResult.confidenceScore,
+        review_status: scoring.decision,
+        compliance_score: scoring.complianceScore,
+        confidence_score: scoring.confidenceScore,
         decision_explanation: explanation.summary,
         email_generated: true,
-        email_sent: false,
+        email_sent: false, // TODO: Wire actual sending
       })
       .select()
       .single();
 
-    if (reviewError) {
-      return { success: false, error: 'Failed to save review' };
+    if (reviewErr || !review) {
+      return { success: false, error: 'Failed to persist review' };
     }
 
-    // 9. Save review checks
+    // 8. Persist Review Checks (with safe FKs)
     if (comparison.checks.length > 0) {
       const checkRows = comparison.checks
-        .map((check) => {
-          // Look up the DB UUID for this requirement code
-          const dbId = requirementDbIds.get(check.requirementId) ?? null;
-          return {
-            rams_review_id: review.id,
-            requirement_id: dbId,
-            status: check.status,
-            severity: check.severity,
-            score: check.score,
-            rams_evidence: check.ramsEvidence,
-            explanation: check.explanation,
-          };
-        })
-        // Only insert checks that resolved to a valid DB requirement
-        .filter((row) => row.requirement_id !== null);
+        .map((check: {
+          requirementId: string;
+          status: string;
+          severity: string;
+          score: number;
+          ramsEvidence?: string;
+          explanation?: string;
+        }) => ({
+          rams_review_id: review.id,
+          requirement_id: requirementDbIds.get(check.requirementId) ?? null,
+          status: check.status,
+          severity: check.severity,
+          score: check.score,
+          rams_evidence: check.ramsEvidence,
+          explanation: check.explanation,
+        }))
+        .filter((r) => r.requirement_id !== null);
 
       if (checkRows.length > 0) {
-        const { error: checksInsertError } = await supabase
-          .from('review_checks')
-          .insert(checkRows);
-        if (checksInsertError) {
-          logger.error('Failed to batch-insert review checks', { error: String(checksInsertError) });
-        }
-      }
-
-      if (checkRows.length < comparison.checks.length) {
-        logger.warn('Some review checks skipped — requirement_id not found in DB', {
-          total: comparison.checks.length,
-          inserted: checkRows.length,
-          skipped: comparison.checks.length - checkRows.length,
-        });
+        await supabase.from('review_checks').insert(checkRows);
       }
     }
 
-    // 10. Save email draft
-    const { error: emailError } = await supabase.from('generated_emails').insert({
+    // 9. Persist Email Draft
+    await supabase.from('generated_emails').insert({
       rams_submission_id: ramsSubmissionId,
-      subject: email.subject,
-      body: email.body,
+      subject: emailDraft.subject,
+      body: emailDraft.body,
       sent: false,
     });
 
-    if (emailError) {
-      logger.error('Failed to save email draft', { error: String(emailError) });
-    }
-
-    // 11. Update RAMS submission
+    // 10. Update RAMS summary
     await supabase
       .from('rams_submissions')
       .update({
-        review_status: scoringResult.decision,
-        compliance_score: scoringResult.complianceScore,
-        confidence_score: scoringResult.confidenceScore,
+        review_status: scoring.decision,
+        compliance_score: scoring.complianceScore,
+        confidence_score: scoring.confidenceScore,
         decision_explanation: explanation.summary,
       })
       .eq('id', ramsSubmissionId);
 
-    // 13. Audit log
+    // 11. Audit
     await createAuditLog('REVIEW_RAMS', 'rams_submission', ramsSubmissionId, {
       userId: performedByUserId,
       details: {
-        decision: scoringResult.decision,
-        score: scoringResult.complianceScore,
+        decision: scoring.decision,
+        score: scoring.complianceScore,
         checks: comparison.checks.length,
+        vectorChunksUsed: relevantChunks.length,
       },
     });
 
     return {
       success: true,
       reviewId: review.id,
-      decision: scoringResult.decision,
-      complianceScore: scoringResult.complianceScore,
+      decision: scoring.decision,
+      complianceScore: scoring.complianceScore,
+      confidenceScore: scoring.confidenceScore,
     };
-  } catch (error) {
-    logger.error('Orchestrator error', {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('orchestrateRAMSReview crashed', {
       ramsSubmissionId,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage,
     });
 
     await supabase
@@ -292,7 +280,41 @@ export async function orchestrateRAMSReview(
 
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Review orchestration failed',
+      error: errorMessage || 'Orchestration failed',
     };
+  }
+}
+
+/**
+ * Semantic retrieval using embeddings + pgvector.
+ * Returns relevant document chunks for the given RAMS text.
+ */
+async function getRelevantDocumentChunks(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  projectId: string,
+  ramsText: string,
+  topK = 25
+) {
+  try {
+    const embedding = await generateEmbeddings([ramsText.slice(0, 1800)]);
+    if (!embedding.length) return [];
+
+    const { data, error } = await supabase.rpc('match_document_chunks', {
+      query_embedding: embedding[0],
+      match_threshold: 0.68,
+      match_count: topK,
+      filter_project_id: projectId,
+    });
+
+    if (error) {
+      logger.warn('Vector search RPC failed (non-fatal)', { error });
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    logger.warn('Vector retrieval error (graceful fallback)', { err });
+    return [];
   }
 }

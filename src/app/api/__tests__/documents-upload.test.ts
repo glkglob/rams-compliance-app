@@ -6,6 +6,28 @@ vi.mock('@/lib/extractText', () => ({
   extractText: vi.fn(),
 }));
 
+// Mock Supabase server client (the route now requires auth + rate limiting)
+vi.mock('@/lib/db/supabase-server', () => ({
+  createServerSupabase: vi.fn(() =>
+    Promise.resolve({
+      auth: {
+        getUser: vi.fn(() =>
+          Promise.resolve({
+            data: { user: { id: 'test-user-id', email: 'test@example.com' } },
+            error: null,
+          })
+        ),
+      },
+    })
+  ),
+}));
+
+// Mock rate limiter to always allow in tests
+vi.mock('@/lib/rate-limit', () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+  rateLimitExceeded: vi.fn(),
+}));
+
 import { extractText } from '@/lib/extractText';
 
 const mockExtractText = vi.mocked(extractText);

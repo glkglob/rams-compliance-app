@@ -78,7 +78,7 @@ export default function Home() {
           </div>
 
           {/* 3-panel layout */}
-          <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] lg:grid-cols-[160px_1fr_220px] min-h-[360px]">
+          <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] lg:grid-cols-[160px_1fr_220px] min-h-90">
 
             {/* Sidebar */}
             <nav className="hidden sm:flex flex-col border-r bg-muted/20 text-xs">
@@ -248,7 +248,7 @@ export default function Home() {
         <div className="relative">
           {/* Horizontal connector line — desktop only, rendered behind step circles */}
           <div
-            className="hidden lg:block absolute inset-x-0 top-[18px] border-t-2 border-dashed border-border"
+            className="hidden lg:block absolute inset-x-0 top-4.5 border-t-2 border-dashed border-border"
             aria-hidden="true"
           />
 

@@ -15,7 +15,7 @@ export function Toaster() {
         <div
           key={toast.id}
           className={cn(
-            'flex items-center justify-between p-4 rounded-lg shadow-lg min-w-[300px] max-w-[400px]',
+            'flex items-center justify-between p-4 rounded-lg shadow-lg min-w-75 max-w-100',
             {
               'bg-white border border-gray-200': !toast.variant || toast.variant === 'default',
               'bg-red-50 border border-red-200': toast.variant === 'destructive',
