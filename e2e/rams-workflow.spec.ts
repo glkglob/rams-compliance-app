@@ -6,8 +6,12 @@ import { test, expect } from '@playwright/test';
 // skipped. Provide a non-placeholder NEXT_PUBLIC_SUPABASE_URL in
 // .env.test.local (or the environment) to enable these tests.
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 const hasRealSupabase =
-  supabaseUrl.length > 0 && !supabaseUrl.includes('placeholder');
+  supabaseUrl.length > 0 &&
+  supabaseAnonKey.length > 0 &&
+  !supabaseUrl.includes('placeholder') &&
+  !supabaseAnonKey.includes('placeholder');
 
 test.describe('RAMS Compliance Workflow', () => {
   test.skip(
