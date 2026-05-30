@@ -82,10 +82,12 @@ export default function PrivacyPolicyPage() {
               </div>
 
               <div>
-                <h3 className="font-semibold">AI processing data</h3>
+                <h3 className="font-semibold">AI processing data (planned)</h3>
                 <p>
-                  Document text and RAMS content are sent to OpenAI for analysis to extract requirements
-                  and perform compliance comparisons. We have a Data Processing Agreement in place with OpenAI.
+                  AI-assisted analysis is a planned feature for a future release. When introduced, document
+                  text and RAMS content would be sent to OpenAI to extract requirements and perform compliance
+                  comparisons, and we would have a Data Processing Agreement in place with OpenAI before enabling
+                  it. We do not currently send your documents to OpenAI.
                 </p>
               </div>
 
@@ -94,7 +96,10 @@ export default function PrivacyPolicyPage() {
                 <ul className="list-disc pl-6">
                   <li>IP addresses, browser type, and timestamps (via standard web server logs)</li>
                   <li>Complete audit trail of actions performed within the system (who did what and when)</li>
-                  <li>Compliance review decisions, scores, and generated email content</li>
+                  <li>
+                    Compliance review decisions, scores, and generated email content (applicable once
+                    AI-assisted review and automated notifications are introduced in a future release)
+                  </li>
                 </ul>
               </div>
             </div>
@@ -155,12 +160,13 @@ export default function PrivacyPolicyPage() {
                 United States with appropriate safeguards.
               </li>
               <li>
-                <strong>OpenAI</strong> (AI analysis of documents) — data is processed in the United States.
-                We have a Data Processing Agreement and Standard Contractual Clauses in place.
+                <strong>OpenAI</strong> (AI analysis of documents) — <em>planned</em>. When AI-assisted review
+                is introduced, data would be processed in the United States under a Data Processing Agreement
+                and Standard Contractual Clauses. Not currently in use.
               </li>
               <li>
-                <strong>Resend</strong> (transactional email delivery) — for sending compliance review emails
-                when requested by reviewers.
+                <strong>Resend</strong> (transactional email delivery) — <em>planned</em>, for sending
+                automated compliance review emails in a future release. Not currently in use.
               </li>
             </ul>
             <p className="mt-4">
@@ -173,9 +179,9 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-2xl font-semibold">6. International transfers</h2>
             <p>
-              Some of our processors (OpenAI, Supabase) are based in the United States. We ensure appropriate
-              safeguards are in place, including Standard Contractual Clauses approved by the UK Government
-              and, where applicable, the UK Addendum to the SCCs.
+              Some of our processors (such as Supabase, and OpenAI once AI-assisted review is introduced) are
+              based in the United States. We ensure appropriate safeguards are in place, including Standard
+              Contractual Clauses approved by the UK Government and, where applicable, the UK Addendum to the SCCs.
             </p>
           </section>
 
@@ -244,10 +250,11 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-2xl font-semibold">9. Automated decision-making and AI</h2>
             <p>
-              The system uses AI (large language models) to analyse documents and suggest compliance decisions.
-              These are <strong>recommendations only</strong>. Final decisions are made or confirmed by human
-              reviewers with appropriate competence. You have the right to request human review of any
-              automated output that affects you.
+              AI-assisted analysis is a planned feature for a future release; the system does not currently use
+              AI to analyse documents or make automated decisions. When introduced, AI (large language models)
+              would analyse documents and suggest compliance decisions as <strong>recommendations only</strong>.
+              Final decisions would always be made or confirmed by human reviewers with appropriate competence,
+              and you would have the right to request human review of any automated output that affects you.
             </p>
           </section>
 
