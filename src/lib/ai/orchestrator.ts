@@ -6,8 +6,12 @@ import { compareCompliance } from '@/lib/ai/agents/compliance-comparison-agent';
 import { generateExplanation } from '@/lib/ai/agents/explanation-agent';
 import { generateEmail } from '@/lib/ai/agents/email-generation-agent';
 import { calculateComplianceScore } from '@/lib/scoring/calculate-compliance-score';
-import { generateEmbeddings } from '@/lib/ai/embeddings';
-import type { ComplianceRequirement } from '@/lib/ai/schemas';
+import type {
+  ComplianceRequirement,
+  ComplianceCheck,
+  ComplianceComparisonOutput,
+  RiskScoringOutput,
+} from '@/lib/ai/schemas';
 
 interface ReviewResult {
   success: boolean;
@@ -18,16 +22,29 @@ interface ReviewResult {
   confidenceScore?: number;
 }
 
-/**
- * Belt-and-Suspenders RAMS Review Orchestrator
- *
- * Design principles:
- * - Human always makes the final decision
- * - Vector retrieval first (when available) for relevance + reproducibility
- * - Strong defensive coding and graceful degradation
- * - Clear audit trail at every major step
- * - FK integrity maintained when writing review_checks
- */
+// Local row types to avoid `any` when mapping Supabase results
+interface RequirementRow {
+  id: string;
+  requirement_code: string;
+  requirement_text: string;
+  category: string;
+  severity: string;
+  source_document_id: string | null;
+  source_excerpt: string | null;
+}
+
+interface ComplianceDocRow {
+  id: string;
+  file_name: string;
+  document_category: string;
+  extracted_text: string | null;
+}
+
+interface InsertedRequirementRow {
+  id: string;
+  requirement_code: string;
+}
+
 export async function orchestrateRAMSReview(
   ramsSubmissionId: string,
   performedByUserId?: string
@@ -52,44 +69,29 @@ export async function orchestrateRAMSReview(
 
     const project = rams.projects;
 
-    // 2. Verify compliance documents exist
-    const { data: complianceDocs, error: docsError } = await supabase
+    // 2. Load compliance documents
+    const { data: complianceDocs } = await supabase
       .from('compliance_documents')
       .select('id, file_name, document_category, extracted_text')
       .eq('project_id', project.id)
       .eq('extraction_status', 'complete');
 
-    if (docsError || !complianceDocs?.length) {
-      await supabase
-        .from('rams_submissions')
-        .update({ review_status: 'manual_review' })
-        .eq('id', ramsSubmissionId);
-
-      return {
-        success: true,
-        decision: 'manual_review',
-        error: 'No completed compliance documents available',
-      };
+    if (!complianceDocs?.length) {
+      await supabase.from('rams_submissions').update({ review_status: 'manual_review' }).eq('id', ramsSubmissionId);
+      return { success: true, decision: 'manual_review', error: 'No compliance documents available' };
     }
 
-    // 3. Retrieve requirements (Hybrid vector + fallback)
+    // 3. Load or extract requirements
     let requirements: ComplianceRequirement[] = [];
     const requirementDbIds = new Map<string, string>();
 
-    const relevantChunks = await getRelevantDocumentChunks(
-      supabase,
-      project.id,
-      rams.extracted_text
-    );
-
-    // Load existing requirements (or extract new ones)
     const { data: existingReqs } = await supabase
       .from('compliance_requirements')
       .select('*')
       .eq('project_id', project.id);
 
     if (existingReqs?.length) {
-      requirements = existingReqs.map((r: any) => {
+      requirements = (existingReqs as RequirementRow[]).map((r) => {
         requirementDbIds.set(r.requirement_code, r.id);
         return {
           requirementCode: r.requirement_code,
@@ -104,7 +106,7 @@ export async function orchestrateRAMSReview(
     } else {
       const extractionResult = await extractRequirements({
         projectId: project.id,
-        documents: (complianceDocs as any[]).map((d) => ({
+        documents: (complianceDocs as ComplianceDocRow[]).map((d) => ({
           documentId: d.id,
           fileName: d.file_name,
           category: d.document_category,
@@ -112,29 +114,25 @@ export async function orchestrateRAMSReview(
         })),
       });
 
-      requirements = extractionResult.requirements.filter(
-        (r) => r.requirementText?.trim()
-      );
+      requirements = extractionResult.requirements.filter((r) => r.requirementText?.trim());
 
       if (requirements.length > 0) {
         const { data: inserted } = await supabase
           .from('compliance_requirements')
-          .insert(
-            requirements.map((req) => ({
-              project_id: project.id,
-              source_document_id: req.sourceDocumentId || null,
-              requirement_code: req.requirementCode,
-              requirement_text: req.requirementText,
-              category: req.category,
-              severity: req.severity,
-              source_excerpt: req.sourceExcerpt || null,
-            }))
-          )
+          .insert(requirements.map((req) => ({
+            project_id: project.id,
+            source_document_id: req.sourceDocumentId || null,
+            requirement_code: req.requirementCode,
+            requirement_text: req.requirementText,
+            category: req.category,
+            severity: req.severity,
+            source_excerpt: req.sourceExcerpt || null,
+          })))
           .select('id, requirement_code');
 
-        inserted?.forEach((row: any) => {
-          requirementDbIds.set(row.requirement_code, row.id);
-        });
+        (inserted as InsertedRequirementRow[] | null)?.forEach((row) =>
+          requirementDbIds.set(row.requirement_code, row.id)
+        );
       }
     }
 
@@ -142,17 +140,17 @@ export async function orchestrateRAMSReview(
       return { success: false, error: 'No requirements available for comparison' };
     }
 
-    // 4. AI Comparison + Gap Detection
-    const comparison = await compareCompliance(requirements, rams.extracted_text);
+    // 4. Run comparison
+    const comparison: ComplianceComparisonOutput = await compareCompliance(requirements, rams.extracted_text);
 
-    // 5. Scoring
-    const scoring = calculateComplianceScore(
+    // 5. Score
+    const scoring: RiskScoringOutput = calculateComplianceScore(
       comparison.checks,
       project.compliance_threshold,
       rams.extraction_confidence ?? undefined
     );
 
-    // 6. Explanation + Email Draft
+    // 6. Explanation + Email
     const explanation = await generateExplanation(
       scoring.complianceScore,
       scoring.threshold,
@@ -171,8 +169,8 @@ export async function orchestrateRAMSReview(
       corrections: explanation.requiredCorrections,
     });
 
-    // 7. Persist Review
-    const { data: review, error: reviewErr } = await supabase
+    // 7. Persist review
+    const { data: review } = await supabase
       .from('rams_reviews')
       .insert({
         rams_submission_id: ramsSubmissionId,
@@ -181,19 +179,19 @@ export async function orchestrateRAMSReview(
         confidence_score: scoring.confidenceScore,
         decision_explanation: explanation.summary,
         email_generated: true,
-        email_sent: false, // TODO: Wire actual sending
+        email_sent: false,
       })
       .select()
       .single();
 
-    if (reviewErr || !review) {
+    if (!review) {
       return { success: false, error: 'Failed to persist review' };
     }
 
-    // 8. Persist Review Checks (with safe FKs)
+    // 8. Persist checks
     if (comparison.checks.length > 0) {
       const checkRows = comparison.checks
-        .map((check: any) => ({
+        .map((check: ComplianceCheck) => ({
           rams_review_id: review.id,
           requirement_id: requirementDbIds.get(check.requirementId) ?? null,
           status: check.status,
@@ -209,7 +207,7 @@ export async function orchestrateRAMSReview(
       }
     }
 
-    // 9. Persist Email Draft
+    // 9. Persist email draft
     await supabase.from('generated_emails').insert({
       rams_submission_id: ramsSubmissionId,
       subject: emailDraft.subject,
@@ -218,15 +216,12 @@ export async function orchestrateRAMSReview(
     });
 
     // 10. Update RAMS summary
-    await supabase
-      .from('rams_submissions')
-      .update({
-        review_status: scoring.decision,
-        compliance_score: scoring.complianceScore,
-        confidence_score: scoring.confidenceScore,
-        decision_explanation: explanation.summary,
-      })
-      .eq('id', ramsSubmissionId);
+    await supabase.from('rams_submissions').update({
+      review_status: scoring.decision,
+      compliance_score: scoring.complianceScore,
+      confidence_score: scoring.confidenceScore,
+      decision_explanation: explanation.summary,
+    }).eq('id', ramsSubmissionId);
 
     // 11. Audit
     await createAuditLog('REVIEW_RAMS', 'rams_submission', ramsSubmissionId, {
@@ -235,7 +230,6 @@ export async function orchestrateRAMSReview(
         decision: scoring.decision,
         score: scoring.complianceScore,
         checks: comparison.checks.length,
-        vectorChunksUsed: relevantChunks.length,
       },
     });
 
@@ -246,53 +240,12 @@ export async function orchestrateRAMSReview(
       complianceScore: scoring.complianceScore,
       confidenceScore: scoring.confidenceScore,
     };
-  } catch (error: any) {
-    logger.error('orchestrateRAMSReview crashed', {
-      ramsSubmissionId,
-      error: error?.message,
-    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('orchestrateRAMSReview failed', { ramsSubmissionId, error: message });
 
-    await supabase
-      .from('rams_submissions')
-      .update({ review_status: 'failed' })
-      .eq('id', ramsSubmissionId);
+    await supabase.from('rams_submissions').update({ review_status: 'failed' }).eq('id', ramsSubmissionId);
 
-    return {
-      success: false,
-      error: error?.message || 'Orchestration failed',
-    };
-  }
-}
-
-/**
- * Semantic retrieval using embeddings + pgvector.
- * Returns relevant document chunks for the given RAMS text.
- */
-async function getRelevantDocumentChunks(
-  supabase: any,
-  projectId: string,
-  ramsText: string,
-  topK = 25
-) {
-  try {
-    const embedding = await generateEmbeddings([ramsText.slice(0, 1800)]);
-    if (!embedding.length) return [];
-
-    const { data, error } = await supabase.rpc('match_document_chunks', {
-      query_embedding: embedding[0],
-      match_threshold: 0.68,
-      match_count: topK,
-      filter_project_id: projectId,
-    });
-
-    if (error) {
-      logger.warn('Vector search RPC failed (non-fatal)', { error });
-      return [];
-    }
-
-    return data || [];
-  } catch (err) {
-    logger.warn('Vector retrieval error (graceful fallback)', { err });
-    return [];
+    return { success: false, error: message };
   }
 }

@@ -1,521 +1,238 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  CheckCircle,
-  Copy,
-  Mail,
-  RefreshCw,
-  XCircle,
-} from "lucide-react";
+import { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'next/navigation';
+import { 
+  RefreshCw, FileText, BarChart3, AlertTriangle 
+} from 'lucide-react';
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ReviewResults } from '@/components/rams/review-results';
+import { GapList } from '@/components/rams/gap-list';
 
-interface ReviewCheck {
+interface RAMSData {
   id: string;
-  status: string;
-  severity: string;
-  explanation: string;
-  rams_evidence: string | null;
-}
-
-interface Review {
-  id: string;
+  subcontractor_name: string;
+  file_name: string;
+  extracted_text: string;
   review_status: string;
   compliance_score: number | null;
   decision_explanation: string | null;
-  email_generated: boolean;
-  email_sent: boolean;
-  review_checks: ReviewCheck[];
-}
-
-interface GeneratedEmail {
-  id: string;
-  subject: string;
-  body: string;
-  sent: boolean;
-  sent_at: string | null;
   created_at: string;
-}
-
-interface RAMSDetail {
-  id: string;
-  project_id: string;
-  subcontractor_name: string;
-  subcontractor_email: string | null;
-  trade_package: string | null;
-  file_name: string;
-  review_status: string;
-  compliance_score: number | null;
-  created_at: string;
-  projects: { name: string; compliance_threshold: number };
-  rams_reviews: Review[];
-  generated_emails: GeneratedEmail[];
-  currentUserRole: string | null;
-}
-
-function DecisionIcon({ status }: { status: string }) {
-  if (status === "approved") return <CheckCircle className="h-12 w-12 text-green-500" />;
-  if (status === "rejected") return <XCircle className="h-12 w-12 text-destructive" />;
-  return <AlertTriangle className="h-12 w-12 text-yellow-500" />;
-}
-
-function StatusBadge({ status }: { status: string }) {
-  if (status === "approved") return <Badge variant="success">Approved</Badge>;
-  if (status === "rejected") return <Badge variant="destructive">Rejected</Badge>;
-  if (status === "manual_review") return <Badge variant="warning">Manual Review Required</Badge>;
-  return <Badge variant="secondary">{status}</Badge>;
-}
-
-function CheckIcon({ status }: { status: string }) {
-  if (status === "compliant") return <CheckCircle className="h-5 w-5 text-green-500" />;
-  if (status === "non_compliant") return <XCircle className="h-5 w-5 text-destructive" />;
-  return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+  rams_reviews?: Array<{
+    id: string;
+    review_status: string;
+    compliance_score?: number | null;
+    decision_explanation?: string | null;
+    email_generated?: boolean;
+    email_sent?: boolean;
+    review_checks?: any[];
+  }>;
 }
 
 export default function RAMSDetailPage() {
   const params = useParams<{ ramsId: string }>();
-  const router = useRouter();
-  const [rams, setRams] = useState<RAMSDetail | null>(null);
+  const [rams, setRams] = useState<RAMSData | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviewing, setReviewing] = useState(false);
-  const [generatingEmail, setGeneratingEmail] = useState(false);
-  const [sendingEmail, setSendingEmail] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [overrideDecision, setOverrideDecision] = useState<"approved" | "rejected" | "manual_review">("approved");
-  const [overrideReason, setOverrideReason] = useState("");
-  const [overriding, setOverriding] = useState(false);
-  const [overrideSuccess, setOverrideSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const loadRAMS = useCallback(async () => {
+    setLoading(true);
     try {
-      const response = await fetch(`/api/rams/${params.ramsId}`);
-      if (response.ok) {
-        const data = (await response.json()) as RAMSDetail;
-        setRams(data);
-      }
-    } catch (error) {
-      console.error("Error loading RAMS:", error);
+      const res = await fetch(`/api/rams/${params.ramsId}`);
+      if (!res.ok) throw new Error('Failed to load RAMS');
+      const data = await res.json();
+      setRams(data);
+      setError(null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load RAMS';
+      setError(message);
     } finally {
       setLoading(false);
     }
   }, [params.ramsId]);
 
-  // Fetch-on-mount pattern: setState happens after async fetch, not synchronously
-  // inside the effect body. Safe — does not trigger cascading renders.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { void loadRAMS(); }, [loadRAMS]);
+  useEffect(() => {
+    void loadRAMS();
+  }, [loadRAMS]);
 
-  const handleReview = async () => {
+  const handleRunAnalysis = async () => {
     setReviewing(true);
-    setActionError(null);
+    setError(null);
+
     try {
-      const response = await fetch(`/api/rams/${params.ramsId}/review`, { method: "POST" });
-      if (response.ok) {
-        await loadRAMS();
-      } else {
-        const data = (await response.json()) as { error?: string };
-        setActionError(data.error ?? "Review failed");
+      const res = await fetch(`/api/rams/${params.ramsId}/review`, {
+        method: 'POST',
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Review failed');
       }
-    } catch {
-      setActionError("Review failed unexpectedly");
+
+      await loadRAMS(); // Refresh data
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(message);
     } finally {
       setReviewing(false);
     }
   };
 
-  const handleGenerateEmail = async () => {
-    setGeneratingEmail(true);
-    setActionError(null);
-    try {
-      const response = await fetch(`/api/rams/${params.ramsId}/generate-email`, { method: "POST" });
-      if (response.ok) {
-        await loadRAMS();
-      } else {
-        const data = (await response.json()) as { error?: string };
-        setActionError(data.error ?? "Email generation failed");
-      }
-    } catch {
-      setActionError("Email generation failed unexpectedly");
-    } finally {
-      setGeneratingEmail(false);
-    }
-  };
-
-  const handleSendEmail = async () => {
-    setSendingEmail(true);
-    setActionError(null);
-    try {
-      const response = await fetch(`/api/rams/${params.ramsId}/send-email`, { method: "POST" });
-      if (response.ok) {
-        await loadRAMS();
-      } else {
-        const data = (await response.json()) as { error?: string };
-        setActionError(data.error ?? "Failed to send email");
-      }
-    } catch {
-      setActionError("Failed to send email unexpectedly");
-    } finally {
-      setSendingEmail(false);
-    }
-  };
-
-  const handleOverride = async () => {
-    if (overrideReason.trim().length < 10) {
-      setActionError("Override reason must be at least 10 characters.");
-      return;
-    }
-    setOverriding(true);
-    setActionError(null);
-    try {
-      const response = await fetch(`/api/rams/${params.ramsId}/override`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ decision: overrideDecision, reason: overrideReason }),
-      });
-      if (response.ok) {
-        setOverrideSuccess(true);
-        setOverrideReason("");
-        await loadRAMS();
-      } else {
-        const data = (await response.json()) as { error?: string };
-        setActionError(data.error ?? "Override failed");
-      }
-    } catch {
-      setActionError("Override failed unexpectedly");
-    } finally {
-      setOverriding(false);
-    }
-  };
-
-  const handleCopyEmail = () => {
-    const body = rams?.generated_emails?.[0]?.body;
-    if (body) {
-      void navigator.clipboard.writeText(body);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-muted border-b-primary" />
+      <div className="flex h-[60vh] items-center justify-center">
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <RefreshCw className="h-5 w-5 animate-spin" /> Loading RAMS...
+        </div>
       </div>
     );
   }
 
-  if (!rams) {
-    return (
-      <div className="container mx-auto p-6">
-        <h1 className="text-2xl font-bold">RAMS not found</h1>
-        <Button onClick={() => router.back()} className="mt-4">
-          Go Back
-        </Button>
-      </div>
-    );
-  }
+  if (!rams) return <div className="p-8 text-center">RAMS not found</div>;
 
-  const review = rams.rams_reviews?.[0];
-  const email = rams.generated_emails?.[0];
+  const latestReview = rams.rams_reviews?.[0];
+  const hasReview = !!latestReview;
+  const canRunReview = rams.review_status === 'pending' || hasReview;
 
   return (
-    <div className="container mx-auto max-w-5xl p-6">
-      <Button variant="ghost" onClick={() => router.back()} className="mb-6">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back
-      </Button>
+    <div className="container mx-auto max-w-6xl space-y-8 py-8">
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{rams.subcontractor_name}</h1>
+          <p className="text-muted-foreground">{rams.file_name}</p>
+        </div>
 
-      <Card className="mb-6">
-        <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <DecisionIcon status={rams.review_status} />
+        <div className="flex items-center gap-3">
+          <Badge variant={
+            rams.review_status === 'approved' ? 'default' :
+            rams.review_status === 'rejected' ? 'destructive' : 'secondary'
+          }>
+            {rams.review_status.replace('_', ' ')}
+          </Badge>
+
+          {rams.compliance_score !== null && (
+            <div className="rounded-lg border px-4 py-1 text-center">
+              <div className="text-2xl font-bold">{rams.compliance_score}%</div>
+              <div className="text-xs text-muted-foreground">Compliance</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Main Action */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">RAMS Review</h1>
-              <p className="text-muted-foreground">
-                {rams.subcontractor_name} — {rams.file_name}
+              <h3 className="font-semibold">AI Compliance Analysis</h3>
+              <p className="text-sm text-muted-foreground">
+                {hasReview 
+                  ? "Analysis complete. You can re-run if needed." 
+                  : "Run AI analysis to detect gaps against project requirements."}
               </p>
             </div>
+
+            <Button 
+              onClick={handleRunAnalysis} 
+              disabled={!canRunReview || reviewing}
+              size="lg"
+            >
+              {reviewing ? (
+                <>Analyzing... <RefreshCw className="ml-2 h-4 w-4 animate-spin" /></>
+              ) : hasReview ? (
+                <>Re-run AI Analysis</>
+              ) : (
+                <>Run AI Analysis</>
+              )}
+            </Button>
           </div>
-          <div className="flex items-center gap-4">
-            <StatusBadge status={rams.review_status} />
-            {rams.compliance_score !== null && (
-              <div className="text-center">
-                <div className="text-2xl font-bold">{rams.compliance_score}%</div>
-                <div className="text-sm text-muted-foreground">Score</div>
-              </div>
-            )}
-          </div>
+
+          {error && (
+            <p className="mt-3 text-sm text-destructive">{error}</p>
+          )}
         </CardContent>
       </Card>
 
-      {actionError && (
-        <div className="mb-4 rounded border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {actionError}
-        </div>
-      )}
-
+      {/* Results Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="requirements">Requirements</TabsTrigger>
-          <TabsTrigger value="email">Email</TabsTrigger>
+          <TabsTrigger value="gaps">Gaps & Requirements</TabsTrigger>
+          <TabsTrigger value="extracted">Extracted Text</TabsTrigger>
         </TabsList>
 
+        {/* Overview Tab */}
         <TabsContent value="overview">
           <div className="grid gap-6 md:grid-cols-2">
-            {/* Manual Override — only for admin / project_manager */}
-            {(rams.currentUserRole === "admin" || rams.currentUserRole === "project_manager") && (
-              <Card className="md:col-span-2 border-amber-200 bg-amber-50/30">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-amber-800">
-                    <AlertTriangle className="h-4 w-4" />
-                    Reviewer Decision Override
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {overrideSuccess && (
-                    <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-                      Override applied successfully.
-                    </div>
-                  )}
-                  <p className="text-sm text-muted-foreground">
-                    As {rams.currentUserRole === "admin" ? "an admin" : "a project manager"}, you can override the AI decision. Your decision and reason will be permanently recorded in the audit trail.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {(["approved", "rejected", "manual_review"] as const).map((d) => (
-                      <button
-                        key={d}
-                        onClick={() => setOverrideDecision(d)}
-                        className={`rounded-md border px-4 py-2 text-sm font-medium transition-colors ${
-                          overrideDecision === d
-                            ? d === "approved"
-                              ? "border-green-600 bg-green-600 text-white"
-                              : d === "rejected"
-                              ? "border-destructive bg-destructive text-white"
-                              : "border-amber-500 bg-amber-500 text-white"
-                            : "border-border bg-background text-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {d === "manual_review" ? "Needs Review" : d.charAt(0).toUpperCase() + d.slice(1)}
-                      </button>
-                    ))}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" /> Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {rams.decision_explanation && (
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">AI Summary</div>
+                    <p className="text-sm">{rams.decision_explanation}</p>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">
-                      Reason <span className="text-muted-foreground">(minimum 10 characters)</span>
-                    </label>
-                    <Textarea
-                      placeholder="Explain the reason for this override decision…"
-                      value={overrideReason}
-                      onChange={(e) => setOverrideReason(e.target.value)}
-                      rows={3}
-                      className="resize-none"
-                    />
-                  </div>
-                  <Button
-                    onClick={handleOverride}
-                    disabled={overriding || overrideReason.trim().length < 10}
-                    variant={overrideDecision === "approved" ? "default" : "destructive"}
-                    className="w-full sm:w-auto"
-                  >
-                    {overriding ? (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        Applying Override…
-                      </>
-                    ) : (
-                      `Confirm Override: ${overrideDecision === "manual_review" ? "Needs Review" : overrideDecision.charAt(0).toUpperCase() + overrideDecision.slice(1)}`
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+                )}
+                
+                {latestReview && (
+                  <ReviewResults review={latestReview} />
+                )}
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader>
                 <CardTitle>Submission Details</CardTitle>
               </CardHeader>
-              <CardContent>
-                <dl className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Subcontractor</dt>
-                    <dd className="font-medium">{rams.subcontractor_name}</dd>
-                  </div>
-                  {rams.subcontractor_email && (
-                    <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Email</dt>
-                      <dd className="font-medium">{rams.subcontractor_email}</dd>
-                    </div>
-                  )}
-                  {rams.trade_package && (
-                    <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Trade</dt>
-                      <dd className="font-medium">{rams.trade_package}</dd>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">File</dt>
-                    <dd className="max-w-[180px] truncate font-medium">{rams.file_name}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Submitted</dt>
-                    <dd className="font-medium">
-                      {new Date(rams.created_at).toLocaleString()}
-                    </dd>
-                  </div>
-                  {review?.decision_explanation && (
-                    <div>
-                      <dt className="mb-1 text-muted-foreground">Decision</dt>
-                      <dd className="text-sm">{review.decision_explanation}</dd>
-                    </div>
-                  )}
-                </dl>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {rams.review_status === "pending" && (
-                  <Button onClick={handleReview} disabled={reviewing} className="w-full">
-                    {reviewing ? (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        Reviewing…
-                      </>
-                    ) : (
-                      "Start Review"
-                    )}
-                  </Button>
-                )}
-
-                {review && !email && (
-                  <Button
-                    onClick={handleGenerateEmail}
-                    disabled={generatingEmail}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    {generatingEmail ? "Generating…" : "Generate Email"}
-                  </Button>
-                )}
-
-                {email && (
-                  <>
-                    <Button onClick={handleCopyEmail} variant="outline" className="w-full">
-                      <Copy className="mr-2 h-4 w-4" />
-                      {copied ? "Copied!" : "Copy Email"}
-                    </Button>
-                    {rams.subcontractor_email && (
-                      <Button
-                        onClick={handleSendEmail}
-                        disabled={sendingEmail || email.sent}
-                        className="w-full"
-                      >
-                        <Mail className="mr-2 h-4 w-4" />
-                        {email.sent ? "Email Sent" : sendingEmail ? "Sending…" : "Send Email"}
-                      </Button>
-                    )}
-                  </>
-                )}
-
-                {!review && rams.review_status !== "pending" && rams.review_status !== "processing" && (
-                  <p className="text-center text-sm text-muted-foreground">
-                    Status: {rams.review_status}
-                  </p>
-                )}
+              <CardContent className="space-y-2 text-sm">
+                <div><strong>Submitted by:</strong> {rams.subcontractor_name}</div>
+                <div><strong>File:</strong> {rams.file_name}</div>
+                <div><strong>Date:</strong> {new Date(rams.created_at).toLocaleDateString()}</div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        <TabsContent value="requirements">
+        {/* Gaps Tab */}
+        <TabsContent value="gaps">
           <Card>
             <CardHeader>
-              <CardTitle>Requirement Checks</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" /> Identified Gaps
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              {review?.review_checks?.length ? (
-                <div className="space-y-4">
-                  {review.review_checks.map((check) => (
-                    <div key={check.id} className="rounded-lg border p-4">
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <CheckIcon status={check.status} />
-                          <span className="font-medium capitalize">
-                            {check.status.replace(/_/g, " ")}
-                          </span>
-                        </div>
-                        <Badge
-                          variant={
-                            check.severity === "critical"
-                              ? "destructive"
-                              : check.severity === "major"
-                              ? "warning"
-                              : "secondary"
-                          }
-                        >
-                          {check.severity}
-                        </Badge>
-                      </div>
-                      <p className="mb-2 text-sm">{check.explanation}</p>
-                      {check.rams_evidence && (
-                        <div className="rounded bg-muted p-2 text-sm">
-                          <span className="font-medium">Evidence: </span>
-                          {check.rams_evidence}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+              {latestReview ? (
+                <GapList checks={latestReview.review_checks || []} />
               ) : (
-                <p className="py-8 text-center text-muted-foreground">
-                  No review checks available. Run a review first.
-                </p>
+                <p className="text-muted-foreground">Run AI Analysis to see gaps.</p>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="email">
+        {/* Extracted Text Tab */}
+        <TabsContent value="extracted">
           <Card>
             <CardHeader>
-              <CardTitle>Email Draft</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" /> Extracted Content
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              {email ? (
-                <div className="space-y-4">
-                  <div>
-                    <p className="mb-1 text-sm font-medium">Subject</p>
-                    <p className="rounded bg-muted p-2 text-sm">{email.subject}</p>
-                  </div>
-                  <div>
-                    <p className="mb-1 text-sm font-medium">Body</p>
-                    <div className="whitespace-pre-wrap rounded bg-muted p-4 text-sm">
-                      {email.body}
-                    </div>
-                  </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Generated: {new Date(email.created_at).toLocaleString()}</span>
-                    <span>{email.sent ? `Sent ${email.sent_at ? new Date(email.sent_at).toLocaleString() : ""}` : "Draft"}</span>
-                  </div>
-                </div>
-              ) : (
-                <p className="py-8 text-center text-muted-foreground">
-                  No email generated yet. Use the Overview tab to generate one after review.
-                </p>
-              )}
+              <pre className="max-h-[600px] overflow-auto rounded-md bg-muted p-4 text-sm whitespace-pre-wrap">
+                {rams.extracted_text || "No extracted text available."}
+              </pre>
             </CardContent>
           </Card>
         </TabsContent>
