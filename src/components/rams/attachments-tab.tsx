@@ -58,8 +58,6 @@ export function AttachmentsTab({ ramsId }: AttachmentsTabProps) {
   }, [ramsId]);
 
   useEffect(() => {
-    // loadAttachments is async; void prevents unhandled-promise warnings.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     loadAttachments();
   }, [loadAttachments]);
 

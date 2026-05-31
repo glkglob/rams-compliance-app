@@ -80,7 +80,7 @@ ENV NODE_ENV=production
 # 1. Much better Docker layer caching behavior when build args change.
 # 2. The actual argument values never appear in the RUN command in build logs
 #    or cached layer metadata (prevents accidental secret leakage).
-RUN [ -n "$NEXT_PUBLIC_SUPABASE_URL" ] || (echo 'ERROR: NEXT_PUBLIC_SUPABASE_URL build arg is required' >&2 && exit 1)
+RUN [ -n "$NEXT_PUBLIC_SUPABASE_URL" ] || (echo 'ERROR: NEXT_PUBLIC_SUPABASE_URL build arg is required. Pass it with --build-arg or via npm run docker:build after loading .env.local' >&2 && exit 1)
 RUN [ -n "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] || [ -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" ] || (echo 'ERROR: NEXT_PUBLIC_SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY build arg is required' >&2 && exit 1)
 
 # Build the app (uses standalone output from next.config.ts)
