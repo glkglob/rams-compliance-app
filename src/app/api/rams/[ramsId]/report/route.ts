@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/db/supabase-server';
+import { ensureProfile } from '@/lib/auth/ensure-profile';
 import { generateReportExcel } from '@/lib/reports/generate-rams-report';
 import { handleAPIError, UnauthorizedError } from '@/lib/error-handling';
 import { isAdminRole } from '@/lib/auth/roles';
@@ -31,7 +32,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       .single();
 
     if (!rams) {
-      return NextResponse.json({ error: 'RAMS not found' }, { status: 404 });
+      throw new NotFoundError('RAMS not found');
     }
 
     // Verify the user is a project member or an admin before allowing download

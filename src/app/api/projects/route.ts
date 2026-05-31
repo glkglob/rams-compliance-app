@@ -5,7 +5,7 @@ import { hasPermission, isAdminRole } from "@/lib/auth/roles";
 import { ensureProfile } from "@/lib/auth/ensure-profile";
 import { logger } from "@/lib/logging";
 import { createServerSupabaseWithTimeout } from "@/lib/db/supabase-with-timeout";
-import { handleAPIError, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
+import { handleAPIError, internalServerErrorResponse, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
 import { toProjectInsert } from "@/lib/projects/project-mappers";
 import { createProjectSchema } from "@/lib/validations/project.schema";
 
@@ -33,11 +33,9 @@ export async function POST(request: Request) {
 
     if (!profile) {
       logger.warn("Profile not found for project creation", { userId: user.id });
-      throw new ForbiddenError("Profile not found. Unable to verify permissions for project creation.");
+      throw new ForbiddenError("Unable to verify permissions for project creation.");
     }
 
-    // Use the already-fetched role directly instead of creating a second
-    // Supabase client inside hasGlobalPermission.
     if (!hasPermission(profile.role, "create:projects")) {
       logger.warn("Project creation denied", { role: profile.role, userId: user.id });
       throw new ForbiddenError(
@@ -71,7 +69,7 @@ export async function POST(request: Request) {
 
     if (memberError) {
       logger.error("Failed to add project member", { error: memberError.message });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     // Centralized audit helper (never blocks the response)
@@ -122,7 +120,7 @@ export async function GET() {
 
       if (error) {
         logger.error("Failed to fetch projects", { error: error.message });
-        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+        return internalServerErrorResponse();
       }
 
       return NextResponse.json(projects ?? [], { status: 200 });
@@ -135,7 +133,7 @@ export async function GET() {
 
     if (membershipError) {
       logger.error("Failed to fetch memberships", { error: membershipError.message });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     const projectIds = memberships?.map((membership: { project_id: string }) => membership.project_id) ?? [];
@@ -152,12 +150,11 @@ export async function GET() {
 
     if (error) {
       logger.error("Failed to fetch projects", { error: error.message });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     return NextResponse.json(projects ?? [], { status: 200 });
   } catch (error) {
-    logger.error("Error fetching projects", { error: error instanceof Error ? error.message : String(error) });
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleAPIError(error);
   }
 }

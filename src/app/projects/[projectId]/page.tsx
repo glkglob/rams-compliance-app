@@ -505,8 +505,8 @@ export default function ProjectDetailsPage() {
                               ))}
                             </select>
                           ) : (
-                            <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium capitalize">
-                              {member.role}
+                            <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium">
+                              {ROLE_DISPLAY_NAMES[member.role as UserRole] ?? member.role}
                             </span>
                           )}
                           {canEditThreshold && !isProjectManagementRole(member.role) && (

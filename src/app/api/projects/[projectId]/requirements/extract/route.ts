@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { createAuditLog } from '@/lib/audit/audit-log';
 import { createServerSupabase } from '@/lib/db/supabase-server';
-import { handleAPIError, UnauthorizedError } from '@/lib/error-handling';
+import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from '@/lib/error-handling';
 import { logger } from '@/lib/logging';
 import { extractRequirements } from '@/lib/ai/agents/requirement-extraction-agent';
 import { checkRateLimit, rateLimitExceeded } from '@/lib/rate-limit';
@@ -34,7 +34,9 @@ export async function POST(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const allowedRoles = ['admin', 'project_manager'];
+    // CDM 2015: principal_designer and principal_contractor share management
+    // rights with admin and the legacy project_manager role.
+    const allowedRoles = ['admin', 'project_manager', 'principal_designer', 'principal_contractor'];
     if (!allowedRoles.includes(membership.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -90,7 +92,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
     if (insertError) {
       logger.error("Failed to insert requirements", { error: insertError.message });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     await createAuditLog('EXTRACT_REQUIREMENTS', 'project', projectId, {

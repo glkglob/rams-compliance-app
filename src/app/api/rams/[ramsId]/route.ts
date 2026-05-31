@@ -16,7 +16,7 @@ export async function GET(_request: Request, { params }: Context) {
       error: userError,
     } = await supabase.auth.getUser();
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      throw new UnauthorizedError();
     }
 
     const { data: rams, error } = await supabase
@@ -33,7 +33,7 @@ export async function GET(_request: Request, { params }: Context) {
       .single();
 
     if (error || !rams) {
-      return NextResponse.json({ error: "RAMS not found" }, { status: 404 });
+      throw new NotFoundError("RAMS not found");
     }
 
     const { data: membership } = await supabase
@@ -62,7 +62,6 @@ export async function GET(_request: Request, { params }: Context) {
 
     return NextResponse.json({ ...rams, currentUserRole }, { status: 200 });
   } catch (error) {
-    logger.error("Error fetching RAMS", { error: error instanceof Error ? error.message : String(error) });
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleAPIError(error);
   }
 }

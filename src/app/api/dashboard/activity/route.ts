@@ -62,7 +62,7 @@ export async function GET() {
 
     if (error) {
       logger.error("Failed to fetch activity logs", { error: error.message });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     return NextResponse.json(data ?? [], { status: 200 });

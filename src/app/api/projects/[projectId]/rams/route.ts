@@ -4,7 +4,7 @@ import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { canManageProject } from "@/lib/auth/permissions";
 import { logger } from "@/lib/logging";
-import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
+import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from "@/lib/error-handling";
 import { extractTextFromFile } from "@/lib/documents/extract-text";
 import { validateFile } from "@/lib/documents/file-validation";
 import { ramsCdmMetadataFromFormData } from "@/lib/cdm/metadata";
@@ -93,7 +93,7 @@ export async function POST(request: Request, { params }: Context) {
 
     if (insertError) {
       logger.error("Failed to insert RAMS submission", { error: insertError.message });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     try {
@@ -164,12 +164,11 @@ export async function GET(_request: Request, { params }: Context) {
 
     if (error) {
       logger.error("Failed to fetch RAMS submissions", { error: error.message });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     return NextResponse.json(submissions ?? [], { status: 200 });
   } catch (error) {
-    logger.error("Error fetching RAMS", { error: error instanceof Error ? error.message : String(error) });
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleAPIError(error);
   }
 }

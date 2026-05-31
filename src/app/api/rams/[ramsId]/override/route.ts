@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { createAuditLog } from "@/lib/audit/audit-log";
+import { ensureProfile } from "@/lib/auth/ensure-profile";
 import { OVERRIDE_ALLOWED_ROLES } from "@/lib/auth/roles";
 import { createServerSupabase } from "@/lib/db/supabase-server";
-import { handleAPIError, UnauthorizedError, ForbiddenError, validationErrorResponse } from "@/lib/error-handling";
+import { handleAPIError, internalServerErrorResponse, UnauthorizedError, ForbiddenError, validationErrorResponse } from "@/lib/error-handling";
 import { logger } from "@/lib/logging";
 import { ensureProfile } from "@/lib/profiles/ensure-profile";
 import { z } from "zod";
@@ -38,9 +39,7 @@ export async function POST(request: Request, { params }: Context) {
     // CDM 2015: principal_designer and principal_contractor share override rights
     // with admin and the legacy project_manager role.
     if (!profile || !(OVERRIDE_ALLOWED_ROLES as readonly string[]).includes(profile.role)) {
-      throw new ForbiddenError(
-        "Forbidden – admin, principal_designer, or principal_contractor role required"
-      );
+      throw new ForbiddenError();
     }
 
     const body = await request.json();
@@ -83,7 +82,7 @@ export async function POST(request: Request, { params }: Context) {
 
     if (updateError) {
       logger.error("Failed to update RAMS override", { error: updateError.message, ramsId });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     const { error: reviewInsertError } = await supabase.from("rams_reviews").insert({
@@ -102,7 +101,7 @@ export async function POST(request: Request, { params }: Context) {
         error: reviewInsertError.message,
         ramsId,
       });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     await createAuditLog("OVERRIDE_RAMS_REVIEW", "rams_submission", ramsId, {

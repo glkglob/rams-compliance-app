@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { getSupabaseAdmin } from "@/lib/db/supabase-admin";
 import { canManageProject } from "@/lib/auth/permissions";
-import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
+import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from "@/lib/error-handling";
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { logger } from "@/lib/logging";
 import { sendEmail } from "@/lib/email/resend";
@@ -75,7 +75,7 @@ export async function POST(request: Request, { params }: Context) {
 
     if (insertError) {
       logger.error("Failed to add project member", { error: insertError.message, projectId });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     // Audit

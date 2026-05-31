@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
-import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
+import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from "@/lib/error-handling";
 import { logger } from "@/lib/logging";
 import { generateEmail } from "@/lib/ai/agents/email-generation-agent";
 import { checkRateLimit, rateLimitExceeded } from "@/lib/rate-limit";
@@ -95,7 +95,7 @@ export async function POST(_request: Request, { params }: Context) {
 
     if (saveError) {
       logger.error("Failed to save generated email", { error: saveError.message, ramsId });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     await supabase
