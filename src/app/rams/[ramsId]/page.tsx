@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReviewResults } from '@/components/rams/review-results';
 import { GapList } from '@/components/rams/gap-list';
 import { GapAnalysisSummary } from '@/components/rams/gap-analysis-summary';
+import { AttachmentsTab } from '@/components/rams/attachments-tab';
 
 interface ReviewCheck {
   id?: string;
@@ -197,6 +198,7 @@ export default function RAMSDetailPage() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="gaps">Gaps & Requirements</TabsTrigger>
           <TabsTrigger value="extracted">Extracted Text</TabsTrigger>
+          <TabsTrigger value="attachments">Attachments</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -274,6 +276,11 @@ export default function RAMSDetailPage() {
               </pre>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Attachments Tab */}
+        <TabsContent value="attachments">
+          <AttachmentsTab ramsId={params.ramsId} />
         </TabsContent>
       </Tabs>
     </div>

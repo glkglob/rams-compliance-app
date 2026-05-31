@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, NotFoundError, UnauthorizedError } from "@/lib/error-handling";
 import { isAdminRole } from "@/lib/auth/roles";
-import { logger } from "@/lib/logging";
 import { ensureProfile } from "@/lib/profiles/ensure-profile";
 
 type Context = { params: Promise<{ ramsId: string }> };
