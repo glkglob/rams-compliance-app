@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     const profile =
       !profileError && rawProfile
         ? rawProfile
-        : await ensureProfile(user.id, user.email ?? "", user.user_metadata?.full_name as string | undefined);
+        : await ensureProfile(user.id, user.email, user.user_metadata?.full_name as string | undefined);
 
     if (!profile) {
       logger.warn("Profile not found for project creation", { userId: user.id });
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       logger.warn("Project creation denied", { role: profile.role, userId: user.id });
       throw new ForbiddenError(
         `Your role '${profile.role}' does not have permission to create projects. ` +
-        "Please contact an administrator to be assigned the project_manager or admin role."
+        "Please contact an administrator to be assigned a CDM management role (for example client, principal_designer, or principal_contractor)."
       );
     }
 
@@ -108,7 +108,7 @@ export async function GET() {
     const profile =
       !profileError && rawProfile
         ? rawProfile
-        : await ensureProfile(user.id, user.email ?? "", user.user_metadata?.full_name as string | undefined);
+        : await ensureProfile(user.id, user.email, user.user_metadata?.full_name as string | undefined);
 
     if (!profile) {
       return NextResponse.json({ error: "Unable to load user profile" }, { status: 403 });

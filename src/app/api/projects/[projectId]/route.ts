@@ -47,7 +47,7 @@ export async function GET(_request: Request, { params }: ProjectRouteContext) {
     const profile =
       !profileError && rawProfile
         ? rawProfile
-        : await ensureProfile(user.id, user.email ?? "", user.user_metadata?.full_name as string | undefined);
+        : await ensureProfile(user.id, user.email, user.user_metadata?.full_name as string | undefined);
 
     if (!profile) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -179,7 +179,7 @@ export async function DELETE(_request: Request, { params }: ProjectRouteContext)
     const profile =
       !profileError && rawProfile
         ? rawProfile
-        : await ensureProfile(user.id, user.email ?? "", user.user_metadata?.full_name as string | undefined);
+        : await ensureProfile(user.id, user.email, user.user_metadata?.full_name as string | undefined);
 
     if (!profile || profile.role !== "admin") {
       throw new ForbiddenError();

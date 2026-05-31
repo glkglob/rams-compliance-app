@@ -24,10 +24,19 @@ export const metadata: Metadata = {
 async function getSessionUser() {
   try {
     const { createServerSupabase } = await import('@/lib/db/supabase-server');
+    const { ensureProfile } = await import('@/lib/auth/ensure-profile');
     const supabase = await createServerSupabase();
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
+    // Defensive profile guarantee: even if the DB trigger missed a historic
+    // account, authenticated route loads heal it before dashboard/projects APIs
+    // query role data.
+    if (user) {
+      await ensureProfile(user.id, user.email, user.user_metadata?.full_name as string | undefined);
+    }
+
     return { userId: user?.id };
   } catch {
     // Non-fatal — layout still renders, Sentry just won't have user context.

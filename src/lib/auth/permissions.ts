@@ -1,6 +1,7 @@
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import type { UserRole } from "./roles";
 import { hasPermission } from "./roles";
+import { ensureProfile } from "./ensure-profile";
 
 /**
  * Centralized permission service for Phase 1.
@@ -18,13 +19,22 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
 
   if (!user) return null;
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", user.id)
     .single();
 
-  return profile?.role ?? null;
+  if (!profileError && profile?.role) {
+    return profile.role as UserRole;
+  }
+
+  const ensuredProfile = await ensureProfile(
+    user.id,
+    user.email,
+    user.user_metadata?.full_name as string | undefined
+  );
+  return ensuredProfile?.role ?? null;
 }
 
 /**
@@ -38,7 +48,7 @@ export async function hasGlobalPermission(permission: string): Promise<boolean> 
 
 /**
  * Check if current user can manage a specific project
- * (admin or project_manager on that project).
+ * (CDM management roles or legacy project_manager on that project).
  */
 export async function canManageProject(projectId: string): Promise<boolean> {
   const supabase = await createServerSupabase();
