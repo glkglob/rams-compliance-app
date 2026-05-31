@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
 import { logger } from "@/lib/logging";
+import { ensureProfile } from "@/lib/profiles/ensure-profile";
 
 export interface ActivityEntry {
   id: string;
@@ -25,11 +26,13 @@ export async function GET() {
       throw new UnauthorizedError();
     }
 
-    const { data: profile } = await supabase
+    const { data: rawProfile } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
+
+    const profile = rawProfile ?? (await ensureProfile({ user, supabase }));
 
     let query = supabase
       .from("audit_logs")

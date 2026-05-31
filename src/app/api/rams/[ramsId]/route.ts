@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { logger } from "@/lib/logging";
+import { ensureProfile } from "@/lib/profiles/ensure-profile";
 
 type Context = { params: Promise<{ ramsId: string }> };
 
@@ -44,11 +45,13 @@ export async function GET(_request: Request, { params }: Context) {
     let currentUserRole: string | null = membership?.role ?? null;
 
     if (!membership) {
-      const { data: profile } = await supabase
+      const { data: rawProfile } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", user.id)
         .single();
+
+      const profile = rawProfile ?? (await ensureProfile({ user, supabase }));
 
       if (!profile || profile.role !== "admin") {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
