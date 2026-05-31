@@ -5,7 +5,7 @@ import { getNextConfigHeaders } from '@/lib/security-headers';
 const nextConfig: NextConfig = {
   // Critical for Railway/Nixpacks: Prevents webpack from trying to bundle native or complex Node modules.
   // Without this, tesseract.js, pdf-parse, mammoth, etc. often cause runtime errors or build warnings.
-  serverExternalPackages: ['tesseract.js', 'pdf-parse', 'mammoth', 'xlsx', 'jszip'],
+  serverExternalPackages: ['tesseract.js', 'pdf-parse', 'mammoth', 'xlsx', 'jszip', '@react-pdf/renderer'],
 
   // Enables minimal standalone output for Docker/Railway deploys (much smaller images, faster cold starts).
   output: 'standalone',

@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { 
-  RefreshCw, FileText, BarChart3, AlertTriangle, CheckCircle 
+import {
+  RefreshCw, FileText, BarChart3, AlertTriangle, CheckCircle, Download,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -52,6 +52,7 @@ export default function RAMSDetailPage() {
   const [rams, setRams] = useState<RAMSData | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviewing, setReviewing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadRAMS = useCallback(async () => {
@@ -101,6 +102,29 @@ export default function RAMSDetailPage() {
     }
   };
 
+  async function handleDownloadEvidencePack() {
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/rams/${params.ramsId}/report?format=pdf`);
+      if (!res.ok) {
+        const data = await res.json() as { error?: string };
+        throw new Error(data.error ?? 'Download failed');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `RAMS-Evidence-Pack.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Download failed';
+      setError(message);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
@@ -140,6 +164,21 @@ export default function RAMSDetailPage() {
               <div className="text-xs text-muted-foreground">Compliance</div>
             </div>
           )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadEvidencePack}
+            disabled={downloading}
+            title="Download a PDF evidence pack with review results, attachments, and audit trail"
+          >
+            {downloading ? (
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            {downloading ? 'Generating…' : 'Evidence Pack'}
+          </Button>
         </div>
       </div>
 
