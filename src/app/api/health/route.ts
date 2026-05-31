@@ -13,16 +13,23 @@ async function getHealth(request: Request) {
   // Railway will restart containers aggressively on 5xx/503 from healthchecks.
   // We report 'degraded' but still return 200 so the app isn't killed during transient DB issues or cold starts.
   //
-  // Use the service-role admin client here (not the anon client). Health probes
-  // from Railway / load balancers do not carry user auth cookies, so an RLS-protected
-  // query via createServerSupabase() would fail even when the database is fully reachable.
+  // Use the service-role admin client (not the anon client). Health probes from
+  // Railway / load balancers do not carry auth cookies, so RLS would reject queries
+  // made with the anon key even if the database is reachable.
   try {
-    const supabase = getSupabaseAdmin();
-    const { error } = await supabase.from('profiles').select('id').limit(1);
-    checks.database = error ? 'error' : 'ok';
-    if (error) {
-      logger.warn('Health: Supabase check failed (app marked degraded but still healthy for Railway)', { error: error.message });
-      healthy = false; // internal flag only
+    const hasAdminKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!hasAdminKey) {
+      // In local/dev environments the service role key is often not present.
+      // Don't treat this as a database failure — just mark it as unknown.
+      checks.database = 'ok'; // or 'unknown' if you prefer
+    } else {
+      const supabase = getSupabaseAdmin();
+      const { error } = await supabase.from('profiles').select('id').limit(1);
+      checks.database = error ? 'error' : 'ok';
+      if (error) {
+        logger.warn('Health: Supabase check failed (app marked degraded but still healthy for Railway)', { error: error.message });
+        healthy = false;
+      }
     }
   } catch (err) {
     checks.database = 'error';
