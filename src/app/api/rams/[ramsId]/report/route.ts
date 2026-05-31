@@ -32,6 +32,26 @@ export async function GET(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'RAMS not found' }, { status: 404 });
     }
 
+    // Verify the user is a project member or an admin before allowing download
+    const { data: membership } = await supabase
+      .from('project_members')
+      .select('role')
+      .eq('project_id', rams.project_id)
+      .eq('user_id', user.id)
+      .single();
+
+    if (!membership) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile || profile.role !== 'admin') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     const buffer = await generateReportExcel(rams);
 
     return new NextResponse(buffer, {
