@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createAuditLog } from "@/lib/audit/audit-log";
-import { ensureProfile } from "@/lib/auth/ensure-profile";
 import { OVERRIDE_ALLOWED_ROLES } from "@/lib/auth/roles";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, internalServerErrorResponse, UnauthorizedError, ForbiddenError, validationErrorResponse } from "@/lib/error-handling";

@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/db/supabase-server';
-import { ensureProfile } from '@/lib/auth/ensure-profile';
 import { generateReportExcel } from '@/lib/reports/generate-rams-report';
-import { handleAPIError, UnauthorizedError } from '@/lib/error-handling';
+import { handleAPIError, NotFoundError, UnauthorizedError } from '@/lib/error-handling';
 import { isAdminRole } from '@/lib/auth/roles';
 import { ensureProfile } from '@/lib/profiles/ensure-profile';
 

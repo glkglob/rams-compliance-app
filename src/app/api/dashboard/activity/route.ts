@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { createServerSupabase } from "@/lib/db/supabase-server";
-import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
+import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from "@/lib/error-handling";
 import { isAdminRole } from "@/lib/auth/roles";
 import { logger } from "@/lib/logging";
 import { ensureProfile } from "@/lib/profiles/ensure-profile";
