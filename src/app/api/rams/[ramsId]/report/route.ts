@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/db/supabase-server';
+import { ensureProfile } from '@/lib/auth/ensure-profile';
 import { generateReportExcel } from '@/lib/reports/generate-rams-report';
-import { handleAPIError, UnauthorizedError } from '@/lib/error-handling';
+import { handleAPIError, UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/error-handling';
 
 type RouteContext = {
   params: Promise<{ ramsId: string }>;
@@ -29,7 +30,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       .single();
 
     if (!rams) {
-      return NextResponse.json({ error: 'RAMS not found' }, { status: 404 });
+      throw new NotFoundError('RAMS not found');
     }
 
     // Verify the user is a project member or an admin before allowing download
@@ -41,14 +42,20 @@ export async function GET(_request: Request, { params }: RouteContext) {
       .single();
 
     if (!membership) {
-      const { data: profile } = await supabase
+      // Defensive fallback: trigger may not have fired for pre-existing users.
+      const { data: rawProfile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
 
+      const profile =
+        !profileError && rawProfile
+          ? rawProfile
+          : await ensureProfile(user.id, user.email ?? '', user.user_metadata?.full_name as string | undefined);
+
       if (!profile || profile.role !== 'admin') {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        throw new ForbiddenError();
       }
     }
 

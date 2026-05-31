@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { canManageProject } from "@/lib/auth/permissions";
+import { internalServerErrorResponse } from "@/lib/error-handling";
 import { logger } from "@/lib/logging";
 import { enqueueDocumentProcessing, isQStashConfigured } from "@/lib/jobs/document-queue";
 
@@ -74,7 +75,7 @@ export async function POST(_request: Request, { params }: ExtractRouteContext) {
 
     if (jobError || !job) {
       logger.error("Failed to create re-processing job", { error: jobError?.message });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     if (isQStashConfigured()) {
@@ -101,6 +102,6 @@ export async function POST(_request: Request, { params }: ExtractRouteContext) {
     );
   } catch (error) {
     logger.error("Error re-extracting text", { error: error instanceof Error ? error.message : String(error) });
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return internalServerErrorResponse();
   }
 }

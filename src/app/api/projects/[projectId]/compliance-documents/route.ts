@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { canManageProject } from "@/lib/auth/permissions";
-import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
+import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from "@/lib/error-handling";
 import { logger } from "@/lib/logging";
 import { validateFile } from "@/lib/documents/file-validation";
 import { getDocumentSignedUrl } from "@/lib/documents/storage";
@@ -92,7 +92,7 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
 
     if (insertError) {
       logger.error("Failed to insert compliance document", { error: insertError.message });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     // Create a processing job and hand the heavy work off to the background
@@ -105,7 +105,7 @@ export async function POST(request: Request, { params }: ProjectDocsContext) {
 
     if (jobError || !job) {
       logger.error("Failed to create processing job", { error: jobError?.message });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     if (isQStashConfigured()) {
@@ -174,7 +174,7 @@ export async function GET(_request: Request, { params }: ProjectDocsContext) {
 
     if (error) {
       logger.error("Failed to fetch compliance documents", { error: error.message });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     const documentsWithUrls = await Promise.all(
@@ -187,6 +187,6 @@ export async function GET(_request: Request, { params }: ProjectDocsContext) {
     return NextResponse.json(documentsWithUrls, { status: 200 });
   } catch (error) {
     logger.error("Error fetching documents", { error: error instanceof Error ? error.message : String(error) });
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return internalServerErrorResponse();
   }
 }

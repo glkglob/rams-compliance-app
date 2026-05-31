@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { createServerSupabase } from "@/lib/db/supabase-server";
-import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
+import { ensureProfile } from "@/lib/auth/ensure-profile";
+import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from "@/lib/error-handling";
 import { logger } from "@/lib/logging";
 
 export interface ActivityEntry {
@@ -25,11 +26,22 @@ export async function GET() {
       throw new UnauthorizedError();
     }
 
-    const { data: profile } = await supabase
+    const { data: rawProfile, error: profileError } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
+
+    // Defensive fallback: trigger may not have fired for pre-existing users.
+    const profile =
+      !profileError && rawProfile
+        ? rawProfile
+        : await ensureProfile(user.id, user.email ?? "", user.user_metadata?.full_name as string | undefined);
+
+    if (!profile) {
+      logger.error("Profile unavailable after ensureProfile attempt", { userId: user.id });
+      return NextResponse.json({ error: "Unable to load user profile" }, { status: 403 });
+    }
 
     let query = supabase
       .from("audit_logs")
@@ -38,7 +50,7 @@ export async function GET() {
       .limit(10);
 
     // Non-admins only see activity on their own projects
-    if (profile?.role !== "admin") {
+    if (profile.role !== "admin") {
       const { data: memberships } = await supabase
         .from("project_members")
         .select("project_id")
@@ -58,7 +70,7 @@ export async function GET() {
 
     if (error) {
       logger.error("Failed to fetch activity logs", { error: error.message });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     return NextResponse.json(data ?? [], { status: 200 });

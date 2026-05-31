@@ -18,6 +18,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ComplianceDocumentsTab } from "@/components/documents/compliance-documents-tab";
 import { RAMSList } from "@/components/rams/rams-list";
 import { createClient } from "@/lib/db/supabase-client";
+import { ROLE_DISPLAY_NAMES, type UserRole } from "@/lib/auth/roles";
+
+/** Roles that grant project-management rights (threshold edits, member management). */
+const MANAGEMENT_ROLES: readonly string[] = [
+  "admin",
+  "principal_designer",
+  "principal_contractor",
+  "project_manager",
+];
+
+/** Roles available for assignment to project members (excludes admin — set globally). */
+const ASSIGNABLE_PROJECT_ROLES: readonly UserRole[] = [
+  "client",
+  "principal_designer",
+  "principal_contractor",
+  "designer",
+  "contractor",
+  "reviewer",
+  "viewer",
+  "project_manager",
+];
 
 interface Project {
   id: string;
@@ -47,7 +68,9 @@ export default function ProjectDetailsPage() {
   const [thresholdInput, setThresholdInput] = useState(80);
   const [isSavingThreshold, setIsSavingThreshold] = useState(false);
 
-  const canEditThreshold = project?.currentUserRole === "admin" || project?.currentUserRole === "project_manager";
+  // CDM 2015: principal_designer and principal_contractor have management rights
+  // alongside admin and the legacy project_manager role.
+  const canEditThreshold = MANAGEMENT_ROLES.includes(project?.currentUserRole ?? "");
 
   // Project members (for Settings tab).
   // The Supabase nested-join result type is complex; we cast to this shape at
@@ -79,7 +102,7 @@ export default function ProjectDetailsPage() {
 
   // Invite member state (Settings tab)
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"viewer" | "reviewer" | "project_manager">("viewer");
+  const [inviteRole, setInviteRole] = useState<UserRole>("viewer");
   const [isInviting, setIsInviting] = useState(false);
 
   useEffect(() => {
@@ -488,15 +511,17 @@ export default function ProjectDetailsPage() {
                               value={member.role}
                               onChange={(e) => handleChangeMemberRole(member.id, e.target.value)}
                               disabled={updatingRoleMemberId === member.id}
-                              className="rounded border bg-background px-2 py-0.5 text-xs capitalize"
+                              className="rounded border bg-background px-2 py-0.5 text-xs"
                             >
-                              <option value="viewer">viewer</option>
-                              <option value="reviewer">reviewer</option>
-                              <option value="project_manager">project_manager</option>
+                              {ASSIGNABLE_PROJECT_ROLES.map((r) => (
+                                <option key={r} value={r}>
+                                  {ROLE_DISPLAY_NAMES[r]}
+                                </option>
+                              ))}
                             </select>
                           ) : (
-                            <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium capitalize">
-                              {member.role}
+                            <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium">
+                              {ROLE_DISPLAY_NAMES[member.role as UserRole] ?? member.role}
                             </span>
                           )}
                           {canEditThreshold && member.role !== "admin" && (
@@ -538,15 +563,15 @@ export default function ProjectDetailsPage() {
                       <select
                         value={inviteRole}
                         onChange={(e) =>
-                          setInviteRole(
-                            e.target.value as "viewer" | "reviewer" | "project_manager",
-                          )
+                          setInviteRole(e.target.value as UserRole)
                         }
                         className="rounded border bg-background px-2 text-sm"
                       >
-                        <option value="viewer">Viewer</option>
-                        <option value="reviewer">Reviewer</option>
-                        <option value="project_manager">Project Manager</option>
+                        {ASSIGNABLE_PROJECT_ROLES.map((r) => (
+                          <option key={r} value={r}>
+                            {ROLE_DISPLAY_NAMES[r]}
+                          </option>
+                        ))}
                       </select>
                       <Button
                         onClick={handleInviteMember}

@@ -5,7 +5,7 @@ import { canManageProject } from "@/lib/auth/permissions";
 import { ensureProfile } from "@/lib/auth/ensure-profile";
 import { logger } from "@/lib/logging";
 import { createServerSupabase } from "@/lib/db/supabase-server";
-import { handleAPIError, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
+import { handleAPIError, internalServerErrorResponse, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
 import { toProjectUpdate } from "@/lib/projects/project-mappers";
 import { updateProjectSchema } from "@/lib/validations/project.schema";
 
@@ -65,7 +65,7 @@ export async function GET(_request: Request, { params }: ProjectRouteContext) {
 
     if (error) {
       logger.error("Failed to fetch project", { error: error.message, projectId });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     if (!project) {
@@ -81,8 +81,7 @@ export async function GET(_request: Request, { params }: ProjectRouteContext) {
       { status: 200 }
     );
   } catch (error) {
-    logger.error("Error fetching project", { error: error instanceof Error ? error.message : String(error) });
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleAPIError(error);
   }
 }
 
@@ -127,7 +126,7 @@ export async function PATCH(request: Request, { params }: ProjectRouteContext) {
 
     if (error) {
       logger.error("Failed to update project", { error: error.message, projectId });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     if (!project) {
@@ -189,7 +188,7 @@ export async function DELETE(_request: Request, { params }: ProjectRouteContext)
 
     if (error) {
       logger.error("Failed to delete project", { error: error.message, projectId });
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return internalServerErrorResponse();
     }
 
     await createAuditLog("DELETE_PROJECT", "project", projectId, {
