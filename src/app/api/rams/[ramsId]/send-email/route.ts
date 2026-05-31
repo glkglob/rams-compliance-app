@@ -4,6 +4,7 @@ import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from "@/lib/error-handling";
 import { sendEmail } from "@/lib/email/resend";
 import { logger } from "@/lib/logging";
+import { setSentryContext } from "@/lib/observability/sentry-context";
 
 type Context = { params: Promise<{ ramsId: string }> };
 
@@ -40,6 +41,8 @@ export async function POST(_request: Request, { params }: Context) {
     if (!membership) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    setSentryContext({ userId: user.id, projectId: rams.project_id, ramsId });
 
     if (!rams.subcontractor_email) {
       return NextResponse.json(

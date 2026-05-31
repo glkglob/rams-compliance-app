@@ -3,8 +3,10 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseWithTimeout } from '@/lib/db/supabase-with-timeout';
 import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from '@/lib/error-handling';
 import { orchestrateRAMSReview } from '@/lib/ai/orchestrator';
+import { setSentryContext } from '@/lib/observability/sentry-context';
 import { checkRateLimit, rateLimitExceeded } from '@/lib/rate-limit';
 import { logger } from '@/lib/logging';
+import { withRequestContext } from '@/lib/request-context';
 
 export const maxDuration = 300;
 
@@ -12,7 +14,7 @@ type RouteContext = {
   params: Promise<{ ramsId: string }>;
 };
 
-export async function POST(_request: Request, { params }: RouteContext) {
+async function postReview(_request: Request, { params }: RouteContext) {
   try {
     const { ramsId } = await params;
     const supabase = await createServerSupabaseWithTimeout(8000); // 8 second timeout for auth + lookup
@@ -42,6 +44,8 @@ export async function POST(_request: Request, { params }: RouteContext) {
     if (!membership) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+
+    setSentryContext({ userId: user.id, projectId: rams.project_id, ramsId });
 
     const rl = await checkRateLimit(user.id, 'review');
     if (!rl.allowed) {
@@ -77,3 +81,5 @@ export async function POST(_request: Request, { params }: RouteContext) {
     return handleAPIError(error);
   }
 }
+
+export const POST = withRequestContext(postReview, '/api/rams/[ramsId]/review');

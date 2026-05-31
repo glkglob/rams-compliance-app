@@ -1,5 +1,6 @@
 import { createServerSupabaseWithTimeout } from '@/lib/db/supabase-with-timeout';
 import { logger } from '@/lib/logging';
+import { addOrchestratorBreadcrumb } from '@/lib/observability/sentry-context';
 import { createAuditLog } from '@/lib/audit/audit-log';
 import { extractRequirements } from '@/lib/ai/agents/requirement-extraction-agent';
 import { compareCompliance } from '@/lib/ai/agents/compliance-comparison-agent';
@@ -152,6 +153,12 @@ export async function orchestrateRAMSReview(
       return { success: false, error: 'RAMS project not found' };
     }
 
+    addOrchestratorBreadcrumb('rams_loaded', {
+      ramsSubmissionId,
+      projectId: project.id,
+      textLength: rams.extracted_text?.length ?? 0,
+    });
+
     // Idempotency/concurrency guard: only one analysis may be in progress for a
     // RAMS record. The final review write set is persisted atomically later via
     // persist_rams_review_result().
@@ -288,6 +295,12 @@ export async function orchestrateRAMSReview(
       }
     }
 
+    addOrchestratorBreadcrumb('requirements_retrieved', {
+      ramsSubmissionId,
+      count: requirements.length,
+      source: vectorRequirements.length > 0 ? 'vector' : 'fallback',
+    });
+
     if (requirements.length === 0) {
       const { error: statusErr } = await supabase
         .from('rams_submissions')
@@ -338,12 +351,24 @@ export async function orchestrateRAMSReview(
     // 5. Run comparison (on potentially chunked/summarized text)
     const comparison: ComplianceComparisonOutput = await compareCompliance(requirements, ramsTextForAnalysis);
 
+    addOrchestratorBreadcrumb('compliance_compared', {
+      ramsSubmissionId,
+      checks: comparison.checks.length,
+    });
+
     // 5. Score
     const scoring: RiskScoringOutput = calculateComplianceScore(
       comparison.checks,
       project.compliance_threshold,
       rams.extraction_confidence ?? undefined
     );
+
+    addOrchestratorBreadcrumb('score_calculated', {
+      ramsSubmissionId,
+      score: scoring.complianceScore,
+      decision: scoring.decision,
+      threshold: scoring.threshold,
+    });
 
     // 6. Explanation + Email
     const explanation = await generateExplanation(
@@ -407,6 +432,13 @@ export async function orchestrateRAMSReview(
     if (persistError || !reviewId) {
       throw new Error(`Failed to atomically persist RAMS review: ${persistError?.message ?? 'no review id returned'}`);
     }
+
+    addOrchestratorBreadcrumb('review_persisted', {
+      ramsSubmissionId,
+      reviewId: String(reviewId),
+      decision: scoring.decision,
+      persistedChecks: checkRows.length,
+    });
 
     return {
       success: true,

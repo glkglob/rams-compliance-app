@@ -4,6 +4,7 @@ import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from "@/lib/error-handling";
 import { logger } from "@/lib/logging";
 import { generateEmail } from "@/lib/ai/agents/email-generation-agent";
+import { setSentryContext } from "@/lib/observability/sentry-context";
 import { checkRateLimit, rateLimitExceeded } from "@/lib/rate-limit";
 
 export const maxDuration = 300;
@@ -48,6 +49,8 @@ export async function POST(_request: Request, { params }: Context) {
     if (!membership) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    setSentryContext({ userId: user.id, projectId: rams.project_id, ramsId });
 
     const { data: review, error: reviewError } = await supabase
       .from("rams_reviews")

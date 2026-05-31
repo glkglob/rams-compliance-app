@@ -10,6 +10,7 @@ import { extractRequirements } from '@/lib/ai/agents/requirement-extraction-agen
 import { logger } from '@/lib/logging';
 import type { DocumentProcessingPayload } from '@/lib/jobs/document-queue';
 import { withRequestContext } from '@/lib/request-context';
+import { setSentryContext, addOrchestratorBreadcrumb } from '@/lib/observability/sentry-context';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -87,6 +88,9 @@ async function postProcessDocument(request: Request) {
   if (!documentId || !jobId || !projectId) {
     return NextResponse.json({ error: 'Missing documentId, jobId or projectId' }, { status: 400 });
   }
+
+  // No userId for QStash workers — tag with entity IDs so errors are searchable.
+  setSentryContext({ projectId, documentId });
 
   const supabase = getSupabaseAdmin();
   let job: ProcessingJobRow | null = null;
@@ -189,6 +193,8 @@ async function postProcessDocument(request: Request) {
       throw new Error('Document has no storage_path');
     }
 
+    addOrchestratorBreadcrumb('rams_loaded', { documentId, projectId, fileName: document.file_name });
+
     // 2. Download the file from Storage.
     const { data: fileBlob, error: downloadError } = await supabase.storage
       .from(DOCUMENTS_BUCKET)
@@ -224,6 +230,13 @@ async function postProcessDocument(request: Request) {
       );
     }
 
+    addOrchestratorBreadcrumb('text_extracted', {
+      documentId,
+      status: extractionResult.status,
+      confidence: extractionResult.confidence,
+      chars: extractedText.length,
+    });
+
     // 4. Chunk the extracted text.
     const chunks = chunkText(extractedText, CHUNK_SIZE_CHARS, CHUNK_OVERLAP_CHARS);
 
@@ -253,6 +266,8 @@ async function postProcessDocument(request: Request) {
         throw new Error(`Failed to save chunks: ${chunkError.message}`);
       }
     }
+
+    addOrchestratorBreadcrumb('chunks_embedded', { documentId, chunks: chunks.length });
 
     // 7. AI structuring → compliance_requirements (GPT-4o + JSON mode + Zod).
     const structuring = await extractRequirements({
@@ -319,6 +334,13 @@ async function postProcessDocument(request: Request) {
     if (completeJobError) {
       throw new Error(`Failed to mark processing job completed: ${completeJobError.message}`);
     }
+
+    addOrchestratorBreadcrumb('document_processing_complete', {
+      documentId,
+      jobId,
+      chunks: chunks.length,
+      requirements: structuring.requirements.length,
+    });
 
     logger.info('Document processing completed', {
       documentId,
