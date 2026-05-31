@@ -67,6 +67,11 @@ export function middleware(request: NextRequest) {
 /**
  * Matcher: run on everything except pure static assets.
  * This explicitly includes `/api/*`, Server Actions, pages, etc.
+ *
+ * NOTE: Next.js requires this to be a static string literal — it cannot
+ * reference an imported variable. The same pattern is exported as
+ * MIDDLEWARE_MATCHER from @/lib/security-headers for use in unit tests.
+ * If you change this, update MIDDLEWARE_MATCHER to match.
  */
 export const config = {
   matcher: [
