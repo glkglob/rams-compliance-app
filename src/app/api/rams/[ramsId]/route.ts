@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { isAdminRole } from "@/lib/auth/roles";
 import { logger } from "@/lib/logging";
 import { ensureProfile } from "@/lib/profiles/ensure-profile";
 
@@ -53,7 +54,7 @@ export async function GET(_request: Request, { params }: Context) {
 
       const profile = rawProfile ?? (await ensureProfile({ user, supabase }));
 
-      if (!profile || profile.role !== "admin") {
+      if (!profile || !isAdminRole(profile.role)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
       currentUserRole = profile.role;

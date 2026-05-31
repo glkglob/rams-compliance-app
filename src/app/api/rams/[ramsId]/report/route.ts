@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/db/supabase-server';
 import { generateReportExcel } from '@/lib/reports/generate-rams-report';
 import { handleAPIError, UnauthorizedError } from '@/lib/error-handling';
+import { isAdminRole } from '@/lib/auth/roles';
 import { ensureProfile } from '@/lib/profiles/ensure-profile';
 
 type RouteContext = {
@@ -50,7 +51,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
       const profile = rawProfile ?? (await ensureProfile({ user, supabase }));
 
-      if (!profile || profile.role !== 'admin') {
+      if (!profile || !isAdminRole(profile.role)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     }

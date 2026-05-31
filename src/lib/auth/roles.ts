@@ -206,3 +206,13 @@ export const OVERRIDE_ALLOWED_ROLES: readonly UserRole[] = [
   "principal_contractor",
   "project_manager", // legacy
 ] as const;
+
+/**
+ * Synchronous check: is this role the platform admin role?
+ *
+ * Prefer this over a raw `=== "admin"` comparison so the check is traceable
+ * and easy to refactor if the admin role name ever changes.
+ */
+export function isAdminRole(role: string | null | undefined): role is "admin" {
+  return role === "admin";
+}

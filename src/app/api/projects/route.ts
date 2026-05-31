@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { createAuditLog } from "@/lib/audit/audit-log";
-import { hasPermission } from "@/lib/auth/roles";
+import { hasPermission, isAdminRole } from "@/lib/auth/roles";
 import { ensureProfile } from "@/lib/auth/ensure-profile";
 import { logger } from "@/lib/logging";
 import { createServerSupabaseWithTimeout } from "@/lib/db/supabase-with-timeout";
@@ -114,7 +114,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unable to load user profile" }, { status: 403 });
     }
 
-    if (profile.role === "admin") {
+    if (isAdminRole(profile.role)) {
       const { data: projects, error } = await supabase
         .from("projects")
         .select("*")

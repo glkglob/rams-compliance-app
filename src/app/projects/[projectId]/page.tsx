@@ -18,6 +18,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ComplianceDocumentsTab } from "@/components/documents/compliance-documents-tab";
 import { RAMSList } from "@/components/rams/rams-list";
 import { createClient } from "@/lib/db/supabase-client";
+import {
+  isProjectManagementRole,
+  PROJECT_ASSIGNABLE_ROLES,
+  ROLE_DISPLAY_NAMES,
+  type UserRole,
+} from "@/lib/auth/roles";
 
 interface Project {
   id: string;
@@ -47,7 +53,9 @@ export default function ProjectDetailsPage() {
   const [thresholdInput, setThresholdInput] = useState(80);
   const [isSavingThreshold, setIsSavingThreshold] = useState(false);
 
-  const canEditThreshold = project?.currentUserRole === "admin" || project?.currentUserRole === "project_manager";
+  // Any CDM management role (admin, client, principal_designer, principal_contractor)
+  // or legacy project_manager can edit settings — mirrors canManageProject on the API.
+  const canEditThreshold = isProjectManagementRole(project?.currentUserRole);
 
   // Project members (for Settings tab).
   // The Supabase nested-join result type is complex; we cast to this shape at
@@ -79,7 +87,7 @@ export default function ProjectDetailsPage() {
 
   // Invite member state (Settings tab)
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"viewer" | "reviewer" | "project_manager">("viewer");
+  const [inviteRole, setInviteRole] = useState<typeof PROJECT_ASSIGNABLE_ROLES[number]>("viewer");
   const [isInviting, setIsInviting] = useState(false);
 
   useEffect(() => {
@@ -483,23 +491,25 @@ export default function ProjectDetailsPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {canEditThreshold && member.role !== "admin" ? (
+                          {canEditThreshold && !isProjectManagementRole(member.role) ? (
                             <select
                               value={member.role}
                               onChange={(e) => handleChangeMemberRole(member.id, e.target.value)}
                               disabled={updatingRoleMemberId === member.id}
-                              className="rounded border bg-background px-2 py-0.5 text-xs capitalize"
+                              className="rounded border bg-background px-2 py-0.5 text-xs"
                             >
-                              <option value="viewer">viewer</option>
-                              <option value="reviewer">reviewer</option>
-                              <option value="project_manager">project_manager</option>
+                              {PROJECT_ASSIGNABLE_ROLES.map((r) => (
+                                <option key={r} value={r}>
+                                  {ROLE_DISPLAY_NAMES[r as UserRole] ?? r}
+                                </option>
+                              ))}
                             </select>
                           ) : (
                             <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium capitalize">
                               {member.role}
                             </span>
                           )}
-                          {canEditThreshold && member.role !== "admin" && (
+                          {canEditThreshold && !isProjectManagementRole(member.role) && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -539,14 +549,16 @@ export default function ProjectDetailsPage() {
                         value={inviteRole}
                         onChange={(e) =>
                           setInviteRole(
-                            e.target.value as "viewer" | "reviewer" | "project_manager",
+                            e.target.value as typeof PROJECT_ASSIGNABLE_ROLES[number],
                           )
                         }
                         className="rounded border bg-background px-2 text-sm"
                       >
-                        <option value="viewer">Viewer</option>
-                        <option value="reviewer">Reviewer</option>
-                        <option value="project_manager">Project Manager</option>
+                        {PROJECT_ASSIGNABLE_ROLES.map((r) => (
+                          <option key={r} value={r}>
+                            {ROLE_DISPLAY_NAMES[r as UserRole] ?? r}
+                          </option>
+                        ))}
                       </select>
                       <Button
                         onClick={handleInviteMember}

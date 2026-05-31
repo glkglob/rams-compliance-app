@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
+import { isAdminRole } from "@/lib/auth/roles";
 import { logger } from "@/lib/logging";
 import { ensureProfile } from "@/lib/profiles/ensure-profile";
 
@@ -41,7 +42,7 @@ export async function GET() {
       .limit(10);
 
     // Non-admins only see activity on their own projects
-    if (profile?.role !== "admin") {
+    if (!isAdminRole(profile?.role)) {
       const { data: memberships } = await supabase
         .from("project_members")
         .select("project_id")
