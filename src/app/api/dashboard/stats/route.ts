@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { ensureProfile } from "@/lib/auth/ensure-profile";
+import { isAdminRole } from "@/lib/auth/roles";
 import { logger } from "@/lib/logging";
 import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from "@/lib/error-handling";
 
@@ -35,7 +36,7 @@ export async function GET() {
     const effectiveProfile =
       !profileError && profile
         ? profile
-        : await ensureProfile(user.id, user.email ?? "", user.user_metadata?.full_name as string | undefined);
+        : await ensureProfile(user.id, user.email, user.user_metadata?.full_name as string | undefined);
 
     if (!effectiveProfile) {
       logger.error("Profile unavailable after ensureProfile attempt", { userId: user.id });
@@ -50,7 +51,7 @@ export async function GET() {
       manualReviews: 0,
     };
 
-    if (effectiveProfile.role === "admin") {
+    if (isAdminRole(effectiveProfile.role)) {
       const [{ count: totalProjects, error: projectError }, { data: ramsData, error: ramsError }] =
         await Promise.all([
           supabase.from("projects").select("*", { count: "exact", head: true }),

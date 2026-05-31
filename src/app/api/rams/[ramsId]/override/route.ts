@@ -5,6 +5,7 @@ import { OVERRIDE_ALLOWED_ROLES } from "@/lib/auth/roles";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, internalServerErrorResponse, UnauthorizedError, ForbiddenError, validationErrorResponse } from "@/lib/error-handling";
 import { logger } from "@/lib/logging";
+import { ensureProfile } from "@/lib/profiles/ensure-profile";
 import { z } from "zod";
 
 const overrideSchema = z.object({
@@ -27,17 +28,13 @@ export async function POST(request: Request, { params }: Context) {
       throw new UnauthorizedError();
     }
 
-    const { data: rawProfile, error: profileError } = await supabase
+    const { data: rawProfile } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
 
-    // Defensive fallback: trigger may not have fired for pre-existing users.
-    const profile =
-      !profileError && rawProfile
-        ? rawProfile
-        : await ensureProfile(user.id, user.email ?? "", user.user_metadata?.full_name as string | undefined);
+    const profile = rawProfile ?? (await ensureProfile({ user, supabase }));
 
     // CDM 2015: principal_designer and principal_contractor share override rights
     // with admin and the legacy project_manager role.

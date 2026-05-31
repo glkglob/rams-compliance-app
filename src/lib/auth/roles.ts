@@ -25,8 +25,8 @@ export const ROLE_DISPLAY_NAMES: Record<UserRole, string> = {
   reviewer: "Reviewer",
   viewer: "Viewer",
   // Legacy
-  project_manager: "Project Manager",
-  user: "User",
+  project_manager: "Principal Contractor",
+  user: "Contractor",
 };
 
 export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
@@ -153,6 +153,49 @@ export function hasPermission(role: UserRole, permission: string): boolean {
 }
 
 /**
+ * CDM-aligned project management roles. Legacy project_manager remains accepted
+ * for backward compatibility with existing rows.
+ */
+export const PROJECT_MANAGEMENT_ROLES: readonly UserRole[] = [
+  "admin",
+  "client",
+  "principal_designer",
+  "principal_contractor",
+  "project_manager", // legacy
+] as const;
+
+/**
+ * Roles that can review project RAMS/compliance outcomes.
+ */
+export const PROJECT_REVIEW_ROLES: readonly UserRole[] = [
+  "admin",
+  "principal_designer",
+  "principal_contractor",
+  "reviewer",
+  "project_manager", // legacy
+] as const;
+
+/**
+ * Roles assignable through the project member UI/API.
+ * We intentionally only expose CDM dutyholder roles and review/view roles for
+ * new assignments to avoid introducing new legacy-role rows.
+ */
+export const PROJECT_ASSIGNABLE_ROLES: readonly UserRole[] = [
+  "client",
+  "principal_designer",
+  "principal_contractor",
+  "designer",
+  "contractor",
+  "reviewer",
+  "viewer",
+] as const;
+
+export function isProjectManagementRole(role: string | null | undefined): role is UserRole {
+  if (!role) return false;
+  return PROJECT_MANAGEMENT_ROLES.includes(role as UserRole);
+}
+
+/**
  * Roles that may perform a manual RAMS override.
  * Includes CDM duty holders with management responsibility and the legacy
  * project_manager role for backward compat.
@@ -163,3 +206,13 @@ export const OVERRIDE_ALLOWED_ROLES: readonly UserRole[] = [
   "principal_contractor",
   "project_manager", // legacy
 ] as const;
+
+/**
+ * Synchronous check: is this role the platform admin role?
+ *
+ * Prefer this over a raw `=== "admin"` comparison so the check is traceable
+ * and easy to refactor if the admin role name ever changes.
+ */
+export function isAdminRole(role: string | null | undefined): role is "admin" {
+  return role === "admin";
+}

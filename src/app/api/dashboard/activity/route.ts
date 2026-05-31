@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { createServerSupabase } from "@/lib/db/supabase-server";
-import { ensureProfile } from "@/lib/auth/ensure-profile";
-import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from "@/lib/error-handling";
+import { handleAPIError, UnauthorizedError } from "@/lib/error-handling";
+import { isAdminRole } from "@/lib/auth/roles";
 import { logger } from "@/lib/logging";
+import { ensureProfile } from "@/lib/profiles/ensure-profile";
 
 export interface ActivityEntry {
   id: string;
@@ -26,22 +27,13 @@ export async function GET() {
       throw new UnauthorizedError();
     }
 
-    const { data: rawProfile, error: profileError } = await supabase
+    const { data: rawProfile } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
 
-    // Defensive fallback: trigger may not have fired for pre-existing users.
-    const profile =
-      !profileError && rawProfile
-        ? rawProfile
-        : await ensureProfile(user.id, user.email ?? "", user.user_metadata?.full_name as string | undefined);
-
-    if (!profile) {
-      logger.error("Profile unavailable after ensureProfile attempt", { userId: user.id });
-      return NextResponse.json({ error: "Unable to load user profile" }, { status: 403 });
-    }
+    const profile = rawProfile ?? (await ensureProfile({ user, supabase }));
 
     let query = supabase
       .from("audit_logs")
@@ -50,7 +42,7 @@ export async function GET() {
       .limit(10);
 
     // Non-admins only see activity on their own projects
-    if (profile.role !== "admin") {
+    if (!isAdminRole(profile?.role)) {
       const { data: memberships } = await supabase
         .from("project_members")
         .select("project_id")

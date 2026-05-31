@@ -1,7 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 
 import { getSupabaseEnv } from '@/lib/config/env';
+import { ensureRequestContext, setRequestUserId } from '@/lib/request-context';
 
 /**
  * Creates a Supabase server client with request timeout protection.
@@ -24,6 +25,10 @@ export async function createServerSupabaseWithTimeout(timeoutMs: number = 10000)
   }
 
   const cookieStore = await cookies();
+  // Establish request context from the incoming headers so requestId and userId
+  // are available in logs and Sentry events for routes using this client.
+  const headerStore = await headers();
+  ensureRequestContext(headerStore);
   const { supabaseUrl, supabaseKey } = getSupabaseEnv();
 
   const controller = new AbortController();

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/db/supabase-server";
-import { ensureProfile } from "@/lib/auth/ensure-profile";
-import { handleAPIError, UnauthorizedError, ForbiddenError, NotFoundError } from "@/lib/error-handling";
+import { isAdminRole } from "@/lib/auth/roles";
+import { logger } from "@/lib/logging";
+import { ensureProfile } from "@/lib/profiles/ensure-profile";
 
 type Context = { params: Promise<{ ramsId: string }> };
 
@@ -45,20 +46,16 @@ export async function GET(_request: Request, { params }: Context) {
     let currentUserRole: string | null = membership?.role ?? null;
 
     if (!membership) {
-      // Defensive fallback: trigger may not have fired for pre-existing users.
-      const { data: rawProfile, error: profileError } = await supabase
+      const { data: rawProfile } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", user.id)
         .single();
 
-      const profile =
-        !profileError && rawProfile
-          ? rawProfile
-          : await ensureProfile(user.id, user.email ?? "", user.user_metadata?.full_name as string | undefined);
+      const profile = rawProfile ?? (await ensureProfile({ user, supabase }));
 
-      if (!profile || profile.role !== "admin") {
-        throw new ForbiddenError();
+      if (!profile || !isAdminRole(profile.role)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
       currentUserRole = profile.role;
     }

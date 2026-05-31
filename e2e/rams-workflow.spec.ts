@@ -20,6 +20,13 @@ const isPlaceholder =
   !supabaseUrl ||
   PLACEHOLDER_HOSTS.some((host) => supabaseUrl.includes(host));
 
+// New-user smoke e-mail — must be unique per run so signup always creates a
+// fresh account.  Set NEW_USER_EMAIL / NEW_USER_PASSWORD in .env.test.local to
+// override with a pre-provisioned account (useful in CI where signup is slow).
+const newUserEmail =
+  process.env.NEW_USER_EMAIL ?? `e2e+${Date.now()}@example.com`;
+const newUserPassword = process.env.NEW_USER_PASSWORD ?? 'Password123!';
+
 test.describe('RAMS Compliance Workflow', () => {
   test.skip(
     isPlaceholder,
@@ -34,6 +41,30 @@ test.describe('RAMS Compliance Workflow', () => {
     await page.fill('#password', 'password123');
     await page.click('button[type="submit"]');
     await page.waitForURL('/dashboard');
+  });
+
+  test('new user can call protected routes immediately after signup without Profile not found', async ({ page }) => {
+    // Sign up a brand-new account — the trigger may not fire before the first
+    // API call, so ensureProfile must heal the missing row transparently.
+    await page.goto('/signup');
+    await page.fill('#email', newUserEmail);
+    await page.fill('#password', newUserPassword);
+    await page.click('button[type="submit"]');
+    // After signup the app should redirect to dashboard (or a confirm-email
+    // page depending on Supabase config).  Either way, no "Profile not found"
+    // error should surface.
+    await page.waitForURL(/\/(dashboard|confirm|verify)/, { timeout: 15000 });
+    await expect(page.getByText('Profile not found')).not.toBeVisible();
+
+    // If we landed on dashboard, hit the activity API directly to confirm no
+    // 403 / "Profile not found" response.
+    const isDashboard = page.url().includes('/dashboard');
+    if (isDashboard) {
+      const response = await page.request.get('/api/dashboard/activity');
+      // Acceptable: 200 (profile created) or 401 (session cookie not forwarded
+      // in same request context).  A 403 "Profile not found" is the failure case.
+      expect(response.status()).not.toBe(403);
+    }
   });
 
   test('should create a project and upload documents', async ({ page }) => {

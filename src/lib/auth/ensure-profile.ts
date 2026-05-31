@@ -23,7 +23,7 @@ export interface ProfileRow {
  */
 export async function ensureProfile(
   userId: string,
-  email: string,
+  email?: string | null,
   fullName?: string | null
 ): Promise<ProfileRow | null> {
   const admin = getSupabaseAdmin();
@@ -51,17 +51,39 @@ export async function ensureProfile(
     return null;
   }
 
+  // If auth.getUser() did not provide an email (rare, but can happen in some
+  // provider/account states), resolve it via admin API so profile creation is
+  // still reliable and idempotent.
+  let resolvedEmail = email?.trim().toLowerCase();
+  if (!resolvedEmail) {
+    const { data: authUserResult, error: authUserError } = await admin.auth.admin.getUserById(userId);
+    if (authUserError) {
+      logger.error("Failed to resolve auth user email in ensureProfile", {
+        userId,
+        error: authUserError.message,
+      });
+      return null;
+    }
+
+    resolvedEmail = authUserResult.user.email?.trim().toLowerCase();
+  }
+
+  if (!resolvedEmail) {
+    logger.error("Cannot create profile without email", { userId });
+    return null;
+  }
+
   // Profile doesn't exist — create it with safe defaults.
   logger.warn("Profile missing for authenticated user; creating via ensureProfile", {
     userId,
-    email,
+    email: resolvedEmail,
   });
 
   const { data: created, error: insertError } = await admin
     .from("profiles")
     .insert({
       id: userId,
-      email,
+      email: resolvedEmail,
       full_name: fullName ?? null,
       // Use 'viewer' as the safest default; admins can promote roles via the UI.
       role: "viewer" as UserRole,

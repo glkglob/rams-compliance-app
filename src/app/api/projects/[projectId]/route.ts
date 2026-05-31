@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createAuditLog } from "@/lib/audit/audit-log";
 import { canManageProject } from "@/lib/auth/permissions";
 import { ensureProfile } from "@/lib/auth/ensure-profile";
+import { isAdminRole } from "@/lib/auth/roles";
 import { logger } from "@/lib/logging";
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { handleAPIError, internalServerErrorResponse, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
@@ -47,13 +48,13 @@ export async function GET(_request: Request, { params }: ProjectRouteContext) {
     const profile =
       !profileError && rawProfile
         ? rawProfile
-        : await ensureProfile(user.id, user.email ?? "", user.user_metadata?.full_name as string | undefined);
+        : await ensureProfile(user.id, user.email, user.user_metadata?.full_name as string | undefined);
 
     if (!profile) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    if (!membership && profile.role !== "admin") {
+    if (!membership && !isAdminRole(profile.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -76,7 +77,7 @@ export async function GET(_request: Request, { params }: ProjectRouteContext) {
     return NextResponse.json(
       {
         ...project,
-        currentUserRole: membership?.role ?? (profile.role === "admin" ? "admin" : null),
+        currentUserRole: membership?.role ?? (isAdminRole(profile.role) ? "admin" : null),
       },
       { status: 200 }
     );
@@ -178,9 +179,9 @@ export async function DELETE(_request: Request, { params }: ProjectRouteContext)
     const profile =
       !profileError && rawProfile
         ? rawProfile
-        : await ensureProfile(user.id, user.email ?? "", user.user_metadata?.full_name as string | undefined);
+        : await ensureProfile(user.id, user.email, user.user_metadata?.full_name as string | undefined);
 
-    if (!profile || profile.role !== "admin") {
+    if (!profile || !isAdminRole(profile.role)) {
       throw new ForbiddenError();
     }
 

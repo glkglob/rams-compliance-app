@@ -22,6 +22,7 @@ This app is Next.js (15/16) with Supabase. Public landing page `/` is largely st
    ```
    (Placeholders are fine — the public landing page does not call these services. Adjust if the env schema changes.)
 3. `npm run dev` → open http://localhost:3000.
+4. If port 3000 is already in use, kill the existing process: `fuser -k 3000/tcp` or find the PID with `ss -tlnp | grep 3000` and `kill -9 <PID>`.
 
 ## Where public copy lives
 
@@ -34,6 +35,10 @@ This app is Next.js (15/16) with Supabase. Public landing page `/` is largely st
 - **Footer / visible sections:** load `/` and scroll, or read the rendered DOM. Confirm exact strings and that removed text (e.g. old "AI-assisted decision support tool.") is gone.
 - **SEO meta description:** open `view-source:http://localhost:3000/` and find `<meta name="description">`. The rendered DOM in devtools also works, but view-source is the cleanest proof for SSR meta tags.
 - For copy-honesty tasks (don't overstate maturity): verify forward-looking features (document upload, AI review, compliance scoring) are clearly marked "Coming soon"/"In development" and not presented as available today.
+
+## Known issue: middleware.ts might not execute in dev
+
+As of Next.js 16, `middleware.ts` may not execute in the dev server. This means CSP headers, `x-request-id`, and `x-nonce` will be **absent** from HTTP responses even though the code is correct. Static security headers from `next.config.ts` (HSTS, X-Frame-Options, nosniff) still work. If you need to verify CSP content, use `npx tsx -e` to call `buildCsp()` directly from `src/lib/security-headers.ts` rather than relying on browser Network tab inspection.
 
 ## CI
 
