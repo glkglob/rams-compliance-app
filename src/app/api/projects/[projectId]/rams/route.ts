@@ -8,6 +8,7 @@ import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from "
 import { extractTextFromFile } from "@/lib/documents/extract-text";
 import { validateFile } from "@/lib/documents/file-validation";
 import { ramsCdmMetadataFromFormData } from "@/lib/cdm/metadata";
+import { processRamsChunks } from "@/lib/ai/chunk-pipeline";
 
 export const maxDuration = 300;
 
@@ -117,6 +118,18 @@ export async function POST(request: Request, { params }: Context) {
           extractionStatus: extractionResult.status,
         },
       });
+
+      // Fire-and-forget chunk + embed pipeline. Failures are non-fatal — the
+      // submission is fully usable without embeddings (semantic search degrades
+      // gracefully). We do NOT await so the upload response is not delayed.
+      if (extractionResult.status === "complete" && extractionResult.extractedText) {
+        processRamsChunks(submission.id, extractionResult.extractedText).catch((err) => {
+          logger.warn("RAMS chunk pipeline failed (non-fatal)", {
+            ramsId: submission.id,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+      }
 
       return NextResponse.json(
         { ...submission, review_status: extractionResult.status === "complete" ? "pending" : "failed" },
