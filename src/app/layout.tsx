@@ -72,6 +72,9 @@ export default async function RootLayout({
                 <a href="/terms" className="hover:text-foreground transition-colors">
                   Terms of Service
                 </a>
+                <a href="/pricing" className="hover:text-foreground transition-colors">
+                  Pricing
+                </a>
                 <a href="/dashboard" className="hover:text-foreground transition-colors">
                   Dashboard
                 </a>
