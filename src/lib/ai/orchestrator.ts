@@ -7,7 +7,11 @@ import { compareCompliance } from '@/lib/ai/agents/compliance-comparison-agent';
 import { generateExplanation } from '@/lib/ai/agents/explanation-agent';
 import { generateEmail } from '@/lib/ai/agents/email-generation-agent';
 import { calculateComplianceScore } from '@/lib/scoring/calculate-compliance-score';
-import { generateEmbeddings } from '@/lib/ai/embeddings';
+import {
+  retrieveRelevantRequirements,
+  retrieveRamsEvidenceBatch,
+  type RamsEvidenceResult,
+} from '@/lib/ai/retrieval';
 import type {
   ComplianceRequirement,
   ComplianceCheck,
@@ -54,77 +58,14 @@ interface PersistedReviewCheckRow {
   score: number;
   rams_evidence: string;
   explanation: string;
+  confidence_score: number | null;
+  evidence_quote: string | null;
+  source_chunk_id: string | null;
 }
 
-/**
- * Semantic requirement retrieval using vector search (embeddings + pgvector).
- * Returns the most relevant requirements for the given RAMS text.
- * Falls back to empty array on failure (graceful degradation).
- */
-async function getRelevantRequirements(
-  supabase: Awaited<ReturnType<typeof createServerSupabaseWithTimeout>>,
-  projectId: string,
-  ramsText: string,
-  requirementDbIds: Map<string, string>,
-  topK = 30
-): Promise<ComplianceRequirement[]> {
-  try {
-    // Embed a prefix of the RAMS text (sufficient for retrieval)
-    const embeddings = await generateEmbeddings([ramsText.slice(0, 2000)]);
-    if (!embeddings.length) return [];
-
-    const queryEmbedding = embeddings[0];
-
-    // Use existing vector search RPC on document_chunks
-    const { data: chunks, error } = await supabase.rpc('match_document_chunks', {
-      query_embedding: queryEmbedding,
-      match_threshold: 0.68,
-      match_count: topK,
-      filter_project_id: projectId,
-    });
-
-    if (error || !chunks?.length) {
-      logger.warn('Vector search returned no results or failed', { error });
-      return [];
-    }
-
-    // Get unique source document IDs from the relevant chunks
-    const typedChunks = chunks as Array<{ document_id?: string }>;
-    const documentIds = [...new Set(typedChunks.map((c) => c.document_id).filter(Boolean))];
-
-    if (documentIds.length === 0) return [];
-
-    // Load requirements that originated from these relevant documents
-    const { data: requirements, error: reqLoadError } = await supabase
-      .from('compliance_requirements')
-      .select('*')
-      .eq('project_id', projectId)
-      .in('source_document_id', documentIds);
-
-    if (reqLoadError) {
-      logger.warn('Failed to load requirements for vector-matched documents', { error: reqLoadError.message });
-      return [];
-    }
-    if (!requirements?.length) return [];
-
-    return (requirements as RequirementRow[]).map((r) => {
-      requirementDbIds.set(r.requirement_code, r.id);
-
-      return {
-        requirementCode: r.requirement_code,
-        requirementText: r.requirement_text,
-        category: r.category,
-        severity: r.severity as 'critical' | 'major' | 'minor',
-        sourceDocumentId: r.source_document_id ?? '',
-        sourceDocumentName: '',
-        sourceExcerpt: r.source_excerpt ?? '',
-      };
-    });
-  } catch (err) {
-    logger.warn('Vector requirement retrieval failed (graceful fallback)', { error: err });
-    return [];
-  }
-}
+// Retrieval logic has been extracted to src/lib/ai/retrieval.ts.
+// The orchestrator calls retrieveRelevantRequirements and
+// retrieveRamsEvidenceBatch from there.
 
 export async function orchestrateRAMSReview(
   ramsSubmissionId: string,
@@ -214,18 +155,18 @@ export async function orchestrateRAMSReview(
 
     // 3. Get requirements using vector search (preferred) or fallback
     let requirements: ComplianceRequirement[] = [];
-    const requirementDbIds = new Map<string, string>();
+    let requirementDbIds = new Map<string, string>();
 
-    // Try semantic retrieval first (P0 improvement)
-    const vectorRequirements = await getRelevantRequirements(
+    // Try semantic retrieval first via the dedicated retrieval module
+    const vectorResult = await retrieveRelevantRequirements(
       supabase,
       project.id,
       rams.extracted_text,
-      requirementDbIds
     );
 
-    if (vectorRequirements.length > 0) {
-      requirements = vectorRequirements;
+    if (vectorResult.requirements.length > 0) {
+      requirements = vectorResult.requirements;
+      requirementDbIds = vectorResult.requirementDbIds;
       logger.info('Using vector-based requirement retrieval', {
         ramsSubmissionId,
         requirementsFound: requirements.length,
@@ -298,7 +239,7 @@ export async function orchestrateRAMSReview(
     addOrchestratorBreadcrumb('requirements_retrieved', {
       ramsSubmissionId,
       count: requirements.length,
-      source: vectorRequirements.length > 0 ? 'vector' : 'fallback',
+      source: vectorResult.requirements.length > 0 ? 'vector' : 'fallback',
     });
 
     if (requirements.length === 0) {
@@ -389,17 +330,36 @@ export async function orchestrateRAMSReview(
       corrections: explanation.requiredCorrections,
     });
 
+    // 6b. Retrieve RAMS chunk evidence for each check
+    const evidenceMap: Map<string, RamsEvidenceResult> = await retrieveRamsEvidenceBatch(
+      supabase,
+      ramsSubmissionId,
+      project.id,
+      requirements.map((r) => ({ requirementCode: r.requirementCode, requirementText: r.requirementText })),
+    );
+
+    addOrchestratorBreadcrumb('requirements_retrieved', {
+      ramsSubmissionId,
+      evidenceFound: [...evidenceMap.values()].filter((e) => e.chunk !== null).length,
+      evidenceTotal: evidenceMap.size,
+    });
+
     const checkRows = comparison.checks.flatMap((check: ComplianceCheck): PersistedReviewCheckRow[] => {
       const requirementId = requirementDbIds.get(check.requirementId);
       if (!requirementId) return [];
 
+      const evidence = evidenceMap.get(check.requirementId);
+
       return [{
-        requirement_id: requirementId,
-        status: check.status,
-        severity: check.severity,
-        score: check.score,
-        rams_evidence: check.ramsEvidence,
-        explanation: check.explanation,
+        requirement_id:   requirementId,
+        status:           check.status,
+        severity:         check.severity,
+        score:            check.score,
+        rams_evidence:    check.ramsEvidence,
+        explanation:      check.explanation,
+        confidence_score: evidence?.similarity ?? null,
+        evidence_quote:   evidence?.evidenceQuote ?? null,
+        source_chunk_id:  evidence?.chunk?.id ?? null,
       }];
     });
 
@@ -424,7 +384,8 @@ export async function orchestrateRAMSReview(
         score: scoring.complianceScore,
         checks: comparison.checks.length,
         persistedChecks: checkRows.length,
-        vectorRetrievalUsed: vectorRequirements.length > 0,
+        vectorRetrievalUsed: vectorResult.requirements.length > 0,
+        evidenceChunksFound: [...evidenceMap.values()].filter((e) => e.chunk !== null).length,
         atomicPersistence: true,
       },
     });
