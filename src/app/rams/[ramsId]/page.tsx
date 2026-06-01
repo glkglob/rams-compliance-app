@@ -14,6 +14,7 @@ import { ReviewResults } from '@/components/rams/review-results';
 import { GapList } from '@/components/rams/gap-list';
 import { GapAnalysisSummary } from '@/components/rams/gap-analysis-summary';
 import { AttachmentsTab } from '@/components/rams/attachments-tab';
+import { AiEvidencePanel, type ReviewCheckWithEvidence } from '@/components/rams/ai-evidence-panel';
 
 interface ReviewCheck {
   id?: string;
@@ -22,6 +23,9 @@ interface ReviewCheck {
   explanation?: string | null;
   rams_evidence?: string | null;
   score?: number | null;
+  confidence_score?: number | null;
+  evidence_quote?: string | null;
+  source_chunk_id?: string | null;
 }
 
 interface RAMSData {
@@ -33,6 +37,7 @@ interface RAMSData {
   compliance_score: number | null;
   decision_explanation: string | null;
   created_at: string;
+  currentUserRole?: string | null;
   rams_reviews?: Array<{
     id: string;
     review_status: string;
@@ -43,6 +48,8 @@ interface RAMSData {
     review_checks?: ReviewCheck[];
   }>;
 }
+
+const OVERRIDE_ROLES = ['admin', 'principal_designer', 'principal_contractor', 'project_manager'];
 
 export default function RAMSDetailPage() {
   const params = useParams<{ ramsId: string }>();
@@ -236,6 +243,7 @@ export default function RAMSDetailPage() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="gaps">Gaps & Requirements</TabsTrigger>
+          <TabsTrigger value="evidence">AI Evidence</TabsTrigger>
           <TabsTrigger value="extracted">Extracted Text</TabsTrigger>
           <TabsTrigger value="attachments">Attachments</TabsTrigger>
         </TabsList>
@@ -299,6 +307,26 @@ export default function RAMSDetailPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* AI Evidence Tab */}
+        <TabsContent value="evidence">
+          {latestReview?.review_checks ? (
+            <AiEvidencePanel
+              ramsId={params.ramsId}
+              checks={(latestReview.review_checks as ReviewCheckWithEvidence[]).filter(
+                (c): c is ReviewCheckWithEvidence => !!c.id,
+              )}
+              canOverride={OVERRIDE_ROLES.includes(rams.currentUserRole ?? '')}
+              onCheckOverridden={() => void loadRAMS()}
+            />
+          ) : (
+            <Card>
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                Run AI Analysis to see evidence and compliance checks.
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Extracted Text Tab */}
