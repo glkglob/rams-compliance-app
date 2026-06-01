@@ -8,6 +8,7 @@ import { ROLE_DISPLAY_NAMES, type UserRole } from '@/lib/auth/roles';
 // Force dynamic rendering — requires runtime auth + Supabase.
 export const dynamic = 'force-dynamic';
 import { AlertTriangle, ArrowLeft, Trash2, User } from 'lucide-react';
+import { CertificationsCard } from '@/components/certifications/certifications-card';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -163,6 +164,11 @@ export default function SettingsPage() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Certifications */}
+      <div className="mb-8">
+        <CertificationsCard />
+      </div>
 
       {/* Danger Zone */}
       <Card className="border-destructive/30">
