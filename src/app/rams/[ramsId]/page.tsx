@@ -15,6 +15,7 @@ import { GapList } from '@/components/rams/gap-list';
 import { GapAnalysisSummary } from '@/components/rams/gap-analysis-summary';
 import { AttachmentsTab } from '@/components/rams/attachments-tab';
 import { AiEvidencePanel, type ReviewCheckWithEvidence } from '@/components/rams/ai-evidence-panel';
+import { SubmissionHistory } from '@/components/rams/submission-history';
 
 interface ReviewCheck {
   id?: string;
@@ -245,6 +246,7 @@ export default function RAMSDetailPage() {
           <TabsTrigger value="gaps">Gaps & Requirements</TabsTrigger>
           <TabsTrigger value="evidence">AI Evidence</TabsTrigger>
           <TabsTrigger value="extracted">Extracted Text</TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
           <TabsTrigger value="attachments">Attachments</TabsTrigger>
         </TabsList>
 
@@ -343,6 +345,14 @@ export default function RAMSDetailPage() {
               </pre>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* History Tab */}
+        <TabsContent value="history">
+          <SubmissionHistory
+            ramsId={params.ramsId}
+            canResubmit={OVERRIDE_ROLES.includes(rams.currentUserRole ?? '')}
+          />
         </TabsContent>
 
         {/* Attachments Tab */}
