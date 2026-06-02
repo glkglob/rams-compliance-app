@@ -68,11 +68,13 @@ async function getReport(request: Request, { params }: Context) {
       pdfBuffer.byteOffset, pdfBuffer.byteOffset + pdfBuffer.byteLength,
     ) as ArrayBuffer;
 
+    const safe = String(report.report_date).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
+
     return new NextResponse(pdfArrayBuffer, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="Daily-Report-${report.report_date}.pdf"`,
+        'Content-Disposition': `attachment; filename="Daily-Report-${safe}.pdf"`,
       },
     });
   } catch (error) {

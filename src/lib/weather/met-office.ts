@@ -3,7 +3,7 @@
  *
  * Fetches current-day observations for a UK location. Falls back gracefully
  * to a null result when:
- * - MET_OFFICE_API_KEY is not configured
+ * - MET_OFFICE_DATAPOINT_KEY is not configured
  * - The API is unreachable
  * - The location cannot be resolved
  *
@@ -34,9 +34,9 @@ export async function fetchWeather(
   lat: number,
   lon: number,
 ): Promise<WeatherData | null> {
-  const apiKey = process.env.MET_OFFICE_API_KEY;
+  const apiKey = process.env.MET_OFFICE_DATAPOINT_KEY;
   if (!apiKey) {
-    logger.info('MET_OFFICE_API_KEY not configured — skipping weather fetch');
+    logger.info('MET_OFFICE_DATAPOINT_KEY not configured — skipping weather fetch');
     return null;
   }
 
@@ -77,7 +77,7 @@ export async function fetchWeather(
 export async function fetchWeatherByLocation(
   location: string,
 ): Promise<WeatherData | null> {
-  if (!process.env.MET_OFFICE_API_KEY) return null;
+  if (!process.env.MET_OFFICE_DATAPOINT_KEY) return null;
   if (!location.trim()) return null;
 
   try {

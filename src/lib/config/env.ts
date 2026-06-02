@@ -83,7 +83,7 @@ const envSchema = z.object({
   APP_URL: optionalUrl,
   // Optional — Met Office DataPoint API for auto-filling daily site reports
   // weather (graceful fallback when unset).
-  MET_OFFICE_API_KEY: optionalString,
+  MET_OFFICE_DATAPOINT_KEY: optionalString,
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -105,7 +105,7 @@ export function validateEnv(): Env {
     QSTASH_NEXT_SIGNING_KEY: process.env.QSTASH_NEXT_SIGNING_KEY,
     CRON_SECRET: process.env.CRON_SECRET,
     APP_URL: process.env.APP_URL,
-    MET_OFFICE_API_KEY: process.env.MET_OFFICE_API_KEY,
+    MET_OFFICE_DATAPOINT_KEY: process.env.MET_OFFICE_DATAPOINT_KEY,
   });
 
   if (!result.success) {

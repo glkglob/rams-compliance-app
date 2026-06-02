@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Calendar,
   ChevronDown,
@@ -229,9 +229,10 @@ export function DailyReportsTab({ projectId }: { projectId: string }) {
     finally { setLoading(false); }
   }, [projectId]);
 
-  const loadedRef = useRef(false);
   useEffect(() => {
-    if (!loadedRef.current) { loadedRef.current = true; void load(); }
+    // Data loading in effect for daily reports list; setState lives inside load callback
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
   }, [load]);
 
   return (
