@@ -41,10 +41,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# supabase
-supabase/.branches/
-supabase/.temp/
-
 # playwright
 playwright-report/
 test-results/
@@ -61,10 +57,11 @@ test-results/
 
 # Local Claude/AI session caches (team tooling stays tracked; sessions don't)
 .claude/sessions/
-# Supabase local development artifacts (config.toml can hold local port/db overrides)
+
+# Supabase local development artifacts (config.toml can hold local port/db overrides;
+# inner .gitignore and snippets/ are CLI temp; only migrations/ should be committed)
 supabase/.branches/
 supabase/.temp/
 supabase/snippets/
 supabase/config.toml
-# The .gitignore inside supabase/ is for local CLI temp files
 supabase/.gitignore
