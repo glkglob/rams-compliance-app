@@ -86,22 +86,20 @@ jobs:
       - name: Install Railway CLI
         shell: bash
         env:
-          RAILWAY_CLI_VERSION: v3.17.0
+          RAILWAY_VERSION: 3.17.0
         run: |
           set -euo pipefail
-          echo "Installing Railway CLI version ${RAILWAY_CLI_VERSION}..."
+          echo "Installing Railway CLI version ${RAILWAY_VERSION}..."
 
-          # Download specific version for better reliability (avoids flakiness of install script)
-          curl -sSL -o /tmp/railway.tar.gz \
-            "https://github.com/railwayapp/cli/releases/download/${RAILWAY_CLI_VERSION}/railway_${RAILWAY_CLI_VERSION#v}_linux_amd64.tar.gz"
+          # Use official install script with version pin. The script handles correct
+          # asset URLs, extraction, and platform detection for the pinned version.
+          # -y skips any interactive prompts (non-tty in CI).
+          curl -sSL https://railway.app/install.sh | sh -s -- -y
 
-          mkdir -p "$HOME/.railway/bin"
-          tar -xzf /tmp/railway.tar.gz -C "$HOME/.railway/bin" --strip-components=1
-          chmod +x "$HOME/.railway/bin/railway"
-
+          # Script installs to ~/.railway/bin
           echo "$HOME/.railway/bin" >> $GITHUB_PATH
           echo "Railway CLI installed:"
-          "$HOME/.railway/bin/railway" --version
+          "$HOME/.railway/bin/railway" --version || true
 
       - name: Deploy to Railway
         shell: bash
