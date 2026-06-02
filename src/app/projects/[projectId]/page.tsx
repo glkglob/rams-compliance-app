@@ -19,6 +19,7 @@ import { ComplianceDocumentsTab } from "@/components/documents/compliance-docume
 import { RAMSList } from "@/components/rams/rams-list";
 import { InspectionsTab } from "@/components/inspections/inspections-tab";
 import { IncidentsTab } from "@/components/incidents/incidents-tab";
+import { DailyReportsTab } from "@/components/daily-reports/daily-reports-tab";
 import { createClient } from "@/lib/db/supabase-client";
 import {
   isProjectManagementRole,
@@ -340,6 +341,7 @@ export default function ProjectDetailsPage() {
           <TabsTrigger value="rams">RAMS Submissions</TabsTrigger>
           <TabsTrigger value="inspections">Inspections</TabsTrigger>
           <TabsTrigger value="incidents">Incidents</TabsTrigger>
+          <TabsTrigger value="daily-reports">Daily Reports</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
@@ -431,6 +433,10 @@ export default function ProjectDetailsPage() {
 
         <TabsContent value="incidents">
           <IncidentsTab projectId={projectId} />
+        </TabsContent>
+
+        <TabsContent value="daily-reports">
+          <DailyReportsTab projectId={projectId} />
         </TabsContent>
 
         <TabsContent value="settings">

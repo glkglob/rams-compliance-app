@@ -25,6 +25,11 @@ const CRITICAL_ACTIONS = new Set<string>([
   'REMOVE_PROJECT_MEMBER',
   'DOCUMENT_PROCESSING_COMPLETED',
   'DOCUMENT_PROCESSING_FAILED',
+
+  // Daily site reports (official compliance / safety records)
+  'CREATE_DAILY_REPORT',
+  'UPDATE_DAILY_REPORT',
+  'DOWNLOAD_DAILY_REPORT_PDF',
 ]);
 
 export function isCriticalAuditAction(action: string): boolean {

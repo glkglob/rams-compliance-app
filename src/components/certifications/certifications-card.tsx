@@ -150,17 +150,14 @@ export function CertificationsCard() {
     }
   }
 
-  const [expiringSoon, setExpiringSoon] = useState<Certification[]>([]);
-  useEffect(() => {
+  /* eslint-disable react-hooks/purity */
+  const expiringSoon = certs.filter((c) => {
     const now = Date.now();
-    setExpiringSoon(
-      certs.filter((c) => {
-        if (!c.expiry_date) return false;
-        const diff = (new Date(c.expiry_date).getTime() - now) / (1000 * 60 * 60 * 24);
-        return diff >= 0 && diff <= 30;
-      }),
-    );
-  }, [certs]);
+    if (!c.expiry_date) return false;
+    const diff = (new Date(c.expiry_date).getTime() - now) / (1000 * 60 * 60 * 24);
+    return diff >= 0 && diff <= 30;
+  });
+  /* eslint-enable react-hooks/purity */
 
   return (
     <Card>

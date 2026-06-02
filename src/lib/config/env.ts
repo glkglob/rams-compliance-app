@@ -81,6 +81,9 @@ const envSchema = z.object({
   // Optional — public base URL used for QStash callbacks (falls back to
   // RAILWAY_PUBLIC_DOMAIN / VERCEL_URL at runtime).
   APP_URL: optionalUrl,
+  // Optional — Met Office DataPoint API for auto-filling daily site reports
+  // weather (graceful fallback when unset).
+  MET_OFFICE_API_KEY: optionalString,
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -102,6 +105,7 @@ export function validateEnv(): Env {
     QSTASH_NEXT_SIGNING_KEY: process.env.QSTASH_NEXT_SIGNING_KEY,
     CRON_SECRET: process.env.CRON_SECRET,
     APP_URL: process.env.APP_URL,
+    MET_OFFICE_API_KEY: process.env.MET_OFFICE_API_KEY,
   });
 
   if (!result.success) {

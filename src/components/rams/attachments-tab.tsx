@@ -58,6 +58,8 @@ export function AttachmentsTab({ ramsId }: AttachmentsTabProps) {
   }, [ramsId]);
 
   useEffect(() => {
+    // Data loading effect — setState happens inside the async loadAttachments callback
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAttachments();
   }, [loadAttachments]);
 

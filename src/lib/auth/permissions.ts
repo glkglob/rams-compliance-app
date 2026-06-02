@@ -1,4 +1,5 @@
 import { createServerSupabase } from "@/lib/db/supabase-server";
+import { logger } from "@/lib/logging";
 import type { UserRole } from "./roles";
 import { hasPermission } from "./roles";
 import { ensureProfile } from "./ensure-profile";
@@ -57,7 +58,7 @@ export async function canManageProject(projectId: string): Promise<boolean> {
   });
 
   if (error) {
-    console.error("canManageProject RPC error:", error);
+    logger.error("canManageProject RPC error", { error: error.message });
     return false;
   }
 
@@ -74,7 +75,7 @@ export async function canViewProject(projectId: string): Promise<boolean> {
   });
 
   if (error) {
-    console.error("canViewProject RPC error:", error);
+    logger.error("canViewProject RPC error", { error: error.message });
     return false;
   }
 
@@ -89,7 +90,7 @@ export async function isAdmin(): Promise<boolean> {
   const { data, error } = await supabase.rpc("is_admin");
 
   if (error) {
-    console.error("isAdmin RPC error:", error);
+    logger.error("isAdmin RPC error", { error: error.message });
     return false;
   }
 
@@ -106,7 +107,7 @@ export async function canReviewProject(projectId: string): Promise<boolean> {
   });
 
   if (error) {
-    console.error("canReviewProject RPC error:", error);
+    logger.error("canReviewProject RPC error", { error: error.message });
     return false;
   }
 

@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies, headers } from 'next/headers';
 
 import { getSupabaseEnv } from '@/lib/config/env';
-import { ensureRequestContext, setRequestUserId } from '@/lib/request-context';
+import { ensureRequestContext } from '@/lib/request-context';
 
 /**
  * Creates a Supabase server client with request timeout protection.

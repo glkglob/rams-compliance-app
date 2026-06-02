@@ -17,6 +17,7 @@ const createCertSchema = z.object({
 
 // ── GET — list user's certifications ───────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function getCertifications(_request: Request) {
   try {
     const supabase = await createServerSupabase();
