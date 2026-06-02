@@ -64,6 +64,7 @@ test-results/
 # Supabase local development artifacts (config.toml can hold local port/db overrides)
 supabase/.branches/
 supabase/.temp/
+supabase/snippets/
 supabase/config.toml
 # The .gitignore inside supabase/ is for local CLI temp files
 supabase/.gitignore
