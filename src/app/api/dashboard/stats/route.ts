@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 import { createServerSupabase } from "@/lib/db/supabase-server";
 import { ensureProfile } from "@/lib/auth/ensure-profile";
-import { isAdminRole } from "@/lib/auth/roles";
 import { logger } from "@/lib/logging";
 import { handleAPIError, internalServerErrorResponse, UnauthorizedError } from "@/lib/error-handling";
 
@@ -51,7 +50,7 @@ export async function GET() {
       manualReviews: 0,
     };
 
-    if (isAdminRole(effectiveProfile.role)) {
+    if (effectiveProfile.role === "admin") {
       const [{ count: totalProjects, error: projectError }, { data: ramsData, error: ramsError }] =
         await Promise.all([
           supabase.from("projects").select("*", { count: "exact", head: true }),
