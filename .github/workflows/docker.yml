@@ -99,15 +99,20 @@ jobs:
           # Script installs to ~/.railway/bin
           echo "$HOME/.railway/bin" >> $GITHUB_PATH
           echo "Railway CLI installed:"
-          "$HOME/.railway/bin/railway" --version || true
+          "$HOME/.railway/bin/railway" --version 
 
-      - name: Deploy to Railway
-        shell: bash
+      - name: Install Railway CLI
+        env:
+          RAILWAY_VERSION: 3.17.0
         run: |
           set -euo pipefail
+          echo "Installing Railway CLI version ${RAILWAY_VERSION}..."
 
-          IMAGE_DIGEST="${{ needs.build-and-push.outputs.digest }}"
-          IMAGE_REF="${{ env.IMAGE_NAME }}:latest"
+          curl -sSL https://railway.app/install.sh | bash -s -- -y
+
+          echo "$HOME/.railway/bin" >> "$GITHUB_PATH"
+          echo "Railway CLI installed:"
+          "$HOME/.railway/bin/railway" --version
 
           echo "=== Railway Deployment ==="
           echo "Image: $IMAGE_REF"
