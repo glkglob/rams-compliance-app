@@ -25,9 +25,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { DocumentUploadDemo } from "@/components/landing/document-upload-demo";
 import { ProductShowcase } from "@/components/landing/product-showcase";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 export default function Home() {
   return (
@@ -39,7 +39,7 @@ export default function Home() {
         <div className="mx-auto max-w-3xl text-center space-y-6">
           <span className="inline-flex items-center gap-2 rounded-full bg-secondary px-3 py-1 text-sm font-medium text-secondary-foreground">
             <span className="h-2 w-2 rounded-full bg-green-500" />
-            Phase 1 · Available Now
+            Live now
           </span>
 
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
@@ -47,15 +47,17 @@ export default function Home() {
           </h1>
 
           <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-            Create projects, manage reviewer access, set compliance thresholds, and
-            maintain a complete audit trail for every decision. AI-assisted document
-            review is coming next.
+            <strong>Live:</strong> AI-powered RAMS text extraction and gap analysis.<br />
+            <strong>Planned:</strong> Automated compliance scoring and recommendations.
+          </p>
+          <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
+            Final compliance decisions are always made and recorded by authorised human reviewers.
           </p>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Button asChild size="lg">
               <Link href="/login">
-                Start Phase 1 Workspace
+                Enter Workspace
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -87,9 +89,8 @@ export default function Home() {
                 { label: "Dashboard", active: false },
                 { label: "Projects", active: false },
                 { label: "Road Works Ph. 2", active: true },
-                { label: "Documents", active: false },
                 { label: "Audit Trail", active: false },
-                { label: "Settings", active: false },
+                { label: "Organisation", active: false },
               ].map(({ label, active }) => (
                 <div
                   key={label}
@@ -203,12 +204,15 @@ export default function Home() {
         <div className="flex items-center gap-3">
           <CheckCircle className="h-5 w-5 text-primary" />
           <h2 className="text-2xl font-semibold tracking-tight">Available Now</h2>
-          <Badge variant="secondary">Live in Phase 1</Badge>
+          <StatusBadge status="live" />
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <Card>
             <CardHeader>
-              <FolderOpen className="h-6 w-6 text-primary mb-3" />
+              <div className="flex items-start justify-between mb-3">
+                <FolderOpen className="h-6 w-6 text-primary" />
+                <StatusBadge status="live" />
+              </div>
               <CardTitle className="text-base font-semibold">Project Management</CardTitle>
               <CardDescription>
                 Create and organise RAMS reviews by project, client, and site.
@@ -217,7 +221,10 @@ export default function Home() {
           </Card>
           <Card>
             <CardHeader>
-              <ShieldCheck className="h-6 w-6 text-primary mb-3" />
+              <div className="flex items-start justify-between mb-3">
+                <ShieldCheck className="h-6 w-6 text-primary" />
+                <StatusBadge status="live" />
+              </div>
               <CardTitle className="text-base font-semibold">Reviewer Access Control</CardTitle>
               <CardDescription>
                 Assign reviewers and manage access with role-based permissions.
@@ -226,7 +233,10 @@ export default function Home() {
           </Card>
           <Card>
             <CardHeader>
-              <BarChart2 className="h-6 w-6 text-primary mb-3" />
+              <div className="flex items-start justify-between mb-3">
+                <BarChart2 className="h-6 w-6 text-primary" />
+                <StatusBadge status="live" />
+              </div>
               <CardTitle className="text-base font-semibold">Compliance Tracking</CardTitle>
               <CardDescription>
                 Track review outcomes, approval status, and project-level compliance metrics.
@@ -343,18 +353,18 @@ export default function Home() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Monitor className="h-5 w-5 text-primary" />
-            <h2 className="text-2xl font-semibold tracking-tight">Try Document Upload &amp; Extraction — Live Demo</h2>
+            <h2 className="text-2xl font-semibold tracking-tight">Try Document Upload &amp; Extraction — Standalone Live Demo</h2>
           </div>
           <p className="text-muted-foreground">
             Upload a PDF, Word (.docx/.doc), or TXT file. Text is extracted on the server using pdf-parse and mammoth. 
-            <strong> For the full AI gap analysis experience</strong>, upload the same document as a RAMS inside a Project.
+            <strong> For the full live AI gap analysis + decision workflow</strong>, create a Project, upload as RAMS, run analysis, and record the human decision.
           </p>
         </div>
         <div className="mx-auto max-w-2xl">
           <DocumentUploadDemo />
         </div>
         <div className="text-center text-sm text-muted-foreground">
-          Want the complete flow? <Link href="/projects" className="font-medium underline">Create a Project</Link> → Upload RAMS → Run AI Analysis on the detail page.
+          Want the complete flow? <Link href="/projects" className="font-medium underline">Create a Project</Link> → Upload RAMS → Run Analysis → Review &amp; Decide.
         </div>
       </section>
 
@@ -459,7 +469,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 6. CORE LIVE CAPABILITIES (P0 - Perception Fix) */}
+      {/* 6. CORE LIVE CAPABILITIES */}
       <section id="core-capabilities" aria-label="Core Live Capabilities" className="space-y-6">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
@@ -467,19 +477,19 @@ export default function Home() {
             <h2 className="text-2xl font-semibold tracking-tight">Core Capabilities — Live Today</h2>
           </div>
           <p className="text-muted-foreground">
-            These two features are fully operational and ready for production use.
+            Text extraction and AI gap analysis are fully operational. AI surfaces potential gaps only — authorised humans record every final decision.
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          {/* Document Upload & Extraction - Live */}
+          {/* Text Extraction - Live */}
           <Card className="flex flex-col border-green-200 bg-green-50/30">
             <CardHeader className="flex-1">
               <div className="mb-3 flex items-center justify-between">
                 <FileUp className="h-5 w-5 text-green-600" />
-                <Badge variant="outline" className="border-green-600 text-green-700">Available Now</Badge>
+                <StatusBadge status="live" />
               </div>
               <CardTitle className="text-sm font-semibold">
-                Document Upload &amp; Extraction
+                Text Extraction
               </CardTitle>
               <CardDescription className="text-xs leading-relaxed">
                 Upload RAMS and supporting documents (PDF, DOCX, TXT) and automatically extract clean, structured text ready for review.
@@ -492,15 +502,15 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          {/* AI-Assisted Compliance Checking - Live */}
+          {/* AI Gap Detection - Live */}
           <Card className="flex flex-col border-green-200 bg-green-50/30">
             <CardHeader className="flex-1">
               <div className="mb-3 flex items-center justify-between">
                 <Sparkles className="h-5 w-5 text-green-600" />
-                <Badge variant="outline" className="border-green-600 text-green-700">Available Now</Badge>
+                <StatusBadge status="live" />
               </div>
               <CardTitle className="text-sm font-semibold">
-                AI-Assisted Compliance Checking
+                AI Gap Detection
               </CardTitle>
               <CardDescription className="text-xs leading-relaxed">
                 Compare extracted RAMS content against your project&apos;s compliance requirements and automatically surface gaps with evidence and severity ratings.
@@ -508,7 +518,7 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <Button asChild variant="outline" size="sm" className="w-full">
-                <Link href="/projects">Start in a Project → Upload RAMS → Run Analysis</Link>
+                <Link href="/projects">Create Project → Upload RAMS → Run Analysis → Review &amp; Decide</Link>
               </Button>
             </CardContent>
           </Card>
@@ -523,7 +533,7 @@ export default function Home() {
             <h2 className="text-2xl font-semibold tracking-tight">Coming Next</h2>
           </div>
           <p className="text-muted-foreground">
-            Features actively in development.
+            Features actively in development. No AI feature is presented as live until it is.
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -531,13 +541,13 @@ export default function Home() {
             <CardHeader className="flex-1">
               <div className="mb-3 flex items-center justify-between">
                 <Gauge className="h-5 w-5 text-muted-foreground" />
-                <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">Planned</span>
+                <StatusBadge status="planned" />
               </div>
               <CardTitle className="text-sm font-semibold text-muted-foreground">
                 Automated Compliance Scoring
               </CardTitle>
               <CardDescription className="text-xs leading-relaxed">
-                Generate review scores and structured recommendations for human approval.
+                Structured scoring engine with suggested decisions for human review and approval.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -546,13 +556,13 @@ export default function Home() {
             <CardHeader className="flex-1">
               <div className="mb-3 flex items-center justify-between">
                 <FileBox className="h-5 w-5 text-muted-foreground" />
-                <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">Planned</span>
+                <StatusBadge status="planned" />
               </div>
               <CardTitle className="text-sm font-semibold text-muted-foreground">
-                Evidence &amp; Audit Pack Generation
+                Automated Notifications &amp; Reporting
               </CardTitle>
               <CardDescription className="text-xs leading-relaxed">
-                Export compliance evidence and review history for audits and client reporting.
+                Email alerts on decisions, scheduled reports, and bulk evidence distribution.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -587,8 +597,7 @@ export default function Home() {
             <div className="space-y-1">
               <p className="text-sm font-semibold">Human-in-the-Loop Review</p>
               <p className="text-sm text-muted-foreground">
-                Approvals remain under human control. AI recommendations, when available,
-                will surface gaps — not make decisions.
+                Approvals remain under human control. AI (live for gap detection) surfaces potential gaps and evidence — never makes decisions.
               </p>
             </div>
           </div>
@@ -626,14 +635,13 @@ export default function Home() {
             Start building a structured RAMS review process today.
           </h2>
           <p className="text-muted-foreground">
-            Centralise reviews, manage accountability, and prepare for AI-assisted
-            compliance workflows.
+            Centralise reviews, manage accountability, and use live AI text extraction + gap analysis today.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Button asChild size="lg">
             <Link href="/login">
-              Start Phase 1 Workspace
+              Enter Workspace
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>

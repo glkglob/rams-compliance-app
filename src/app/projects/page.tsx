@@ -90,8 +90,7 @@ export default function ProjectsPage() {
             <FolderOpen className="mb-4 h-12 w-12 text-muted-foreground" />
             <h2 className="mb-2 text-xl font-semibold">No Projects Yet</h2>
             <p className="mb-4 max-w-md text-muted-foreground">
-              Create your first project to get started with RAMS compliance
-              review.
+              Create a project to upload RAMS, run AI gap analysis, and record human decisions. Workflow: Create Project → Upload RAMS → Run Analysis → Review &amp; Decide.
             </p>
             <Button onClick={() => router.push("/projects/new")}>
               Create Your First Project

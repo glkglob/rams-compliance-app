@@ -16,6 +16,7 @@ import { GapAnalysisSummary } from '@/components/rams/gap-analysis-summary';
 import { AttachmentsTab } from '@/components/rams/attachments-tab';
 import { AiEvidencePanel, type ReviewCheckWithEvidence } from '@/components/rams/ai-evidence-panel';
 import { SubmissionHistory } from '@/components/rams/submission-history';
+import { AiDisclaimerBanner } from '@/components/ui/ai-disclaimer-banner';
 
 interface ReviewCheck {
   id?: string;
@@ -190,6 +191,9 @@ export default function RAMSDetailPage() {
         </div>
       </div>
 
+      {/* AI disclaimer — persistent on review/findings screens */}
+      <AiDisclaimerBanner />
+
       {/* Post-upload guidance (P0 Discoverability) */}
       {justUploaded && (
         <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-800">
@@ -198,7 +202,7 @@ export default function RAMSDetailPage() {
             <div>
               <p className="font-semibold">RAMS uploaded successfully!</p>
               <p className="text-sm mt-1">
-                Next step: Run AI-powered gap analysis to compare this RAMS against your project&apos;s compliance requirements.
+                Next step: Run AI gap analysis, then review the results and record the authorised human decision (approve, reject or override with notes).
               </p>
             </div>
           </div>
@@ -213,8 +217,8 @@ export default function RAMSDetailPage() {
               <h3 className="font-semibold">AI Compliance Analysis</h3>
               <p className="text-sm text-muted-foreground">
                 {hasReview 
-                  ? "Analysis complete. You can re-run if needed." 
-                  : "Run AI analysis to detect gaps against project requirements."}
+                  ? "Analysis complete. You can re-run if needed. Remember: AI gaps are suggestions only — record the authorised human decision." 
+                  : "Run AI gap analysis to detect gaps against project requirements. Then review and record the final decision."}
               </p>
             </div>
 
@@ -305,7 +309,7 @@ export default function RAMSDetailPage() {
               {latestReview ? (
                 <GapList checks={latestReview.review_checks || []} />
               ) : (
-                <p className="text-muted-foreground">Run AI Analysis to see gaps.</p>
+                <p className="text-muted-foreground">Run AI Analysis to see gaps. Then use the review tools to record the authorised human decision (approve/reject/override).</p>
               )}
             </CardContent>
           </Card>
@@ -325,7 +329,7 @@ export default function RAMSDetailPage() {
           ) : (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                Run AI Analysis to see evidence and compliance checks.
+                Run AI Analysis to see evidence and compliance checks. AI provides decision support — final decisions must be recorded by an authorised reviewer.
               </CardContent>
             </Card>
           )}

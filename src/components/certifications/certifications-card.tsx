@@ -190,7 +190,7 @@ export function CertificationsCard() {
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : certs.length === 0 ? (
           <p className="py-4 text-center text-sm text-muted-foreground">
-            No certifications added yet.
+            No certifications added yet. Add your qualifications and competency records (visible to project admins).
           </p>
         ) : (
           <div className="space-y-2">

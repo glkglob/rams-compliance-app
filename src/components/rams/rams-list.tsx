@@ -7,6 +7,7 @@ import { Eye, FileText, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AiDisclaimerBanner } from "@/components/ui/ai-disclaimer-banner";
 
 interface RAMSSubmission {
   id: string;
@@ -74,10 +75,16 @@ export function RAMSList({ projectId }: { projectId: string }) {
         </Button>
       </CardHeader>
       <CardContent>
+        <div className="mb-4">
+          <AiDisclaimerBanner />
+        </div>
         {submissions.length === 0 ? (
           <div className="py-8 text-center">
             <FileText className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
             <p className="text-muted-foreground">No RAMS submissions yet.</p>
+            <p className="text-xs text-muted-foreground max-w-xs mx-auto mt-1">
+              Create a project, upload RAMS, run AI gap analysis, then review and record decisions.
+            </p>
             <Button
               variant="outline"
               className="mt-4"

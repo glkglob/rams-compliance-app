@@ -16,7 +16,7 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'RAMS Compliance Review',
   description:
-    'A secure, project-centric compliance workspace with role-based access and audit logging — built to support AI-assisted RAMS review in upcoming phases.',
+    'AI-powered RAMS text extraction and gap analysis. A secure, project-centric compliance workspace with role-based access and audit logging. Final compliance decisions are made and recorded by authorised human reviewers.',
 };
 
 // Lazy-import so a module-level crash in supabase-server never

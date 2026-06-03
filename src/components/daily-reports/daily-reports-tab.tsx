@@ -258,7 +258,7 @@ export function DailyReportsTab({ projectId }: { projectId: string }) {
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : reports.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
-            No daily reports yet. Create one to start tracking site activity.
+            No daily reports yet. Create one to start tracking site activity. (Primary compliance flow is Project → RAMS upload → AI gap analysis → record reviewer decisions.)
           </p>
         ) : (
           <div className="space-y-2">

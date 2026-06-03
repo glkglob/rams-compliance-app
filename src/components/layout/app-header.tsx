@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FolderOpen, Settings, LogOut, Shield } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Building2, LogOut, Shield } from "lucide-react";
 import { createClient } from "@/lib/db/supabase-client";
 import { Button } from "@/components/ui/button";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/projects", label: "Projects", icon: FolderOpen },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/organisation", label: "Organisation", icon: Building2 },
 ];
 
 export function AppHeader() {
@@ -21,7 +21,8 @@ export function AppHeader() {
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/projects") ||
     pathname.startsWith("/rams") ||
-    pathname.startsWith("/settings");
+    pathname.startsWith("/organisation") ||
+    pathname.startsWith("/settings"); // keep for any legacy links during transition
 
   if (!isAppRoute) return null;
 

@@ -6,6 +6,7 @@ import { Upload, FileText, Loader2, AlertCircle, CheckCircle, Copy, X } from 'lu
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 interface UploadResult {
   filename: string;
@@ -116,9 +117,7 @@ export function DocumentUploadDemo() {
         <CardTitle className="flex items-center gap-2 text-base">
           <Upload className="h-5 w-5 text-primary" />
           Document Upload &amp; Extraction
-          <Badge variant="outline" className="ml-auto text-[10px] font-normal">
-            Live Demo
-          </Badge>
+          <StatusBadge status="live" className="ml-auto" />
         </CardTitle>
         <CardDescription>
           Upload a PDF, Word (.doc/.docx), or TXT file. Text will be extracted securely on the server and returned for review.
@@ -272,7 +271,7 @@ export function DocumentUploadDemo() {
             </div>
 
             <p className="text-[10px] text-center text-muted-foreground">
-              This is a live demonstration. Extracted content is processed in-memory and not stored.
+              Live extraction demo (processed server-side, not stored). For full AI gap analysis and human decision recording, use inside a Project.
             </p>
           </div>
         )}

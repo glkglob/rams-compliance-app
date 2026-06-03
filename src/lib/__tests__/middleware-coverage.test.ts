@@ -52,6 +52,7 @@ describe('MIDDLEWARE_MATCHER', () => {
     expect(pathMatches('/')).toBe(true);
     expect(pathMatches('/privacy')).toBe(true);
     expect(pathMatches('/settings')).toBe(true);
+    expect(pathMatches('/organisation')).toBe(true);
   });
 
   it('excludes _next/static assets', () => {

@@ -12,7 +12,8 @@ export interface ActivityEntry {
   entity_type: string;
   entity_id: string | null;
   details: Record<string, unknown> | null;
-  created_at: string;
+  created_at?: string;
+  occurred_at?: string;
 }
 
 export async function GET() {
@@ -36,9 +37,9 @@ export async function GET() {
     const profile = rawProfile ?? (await ensureProfile({ user, supabase }));
 
     let query = supabase
-      .from("audit_logs")
-      .select("id, action, entity_type, entity_id, details, created_at")
-      .order("created_at", { ascending: false })
+      .from("audit_events")
+      .select("id, action, entity_type, entity_id, details, occurred_at, created_at")
+      .order("occurred_at", { ascending: false })
       .limit(10);
 
     // Non-admins only see activity on their own projects
@@ -54,8 +55,8 @@ export async function GET() {
         return NextResponse.json([], { status: 200 });
       }
 
-      // Filter to logs where user_id is themselves OR entity relates to their projects
-      query = query.eq("user_id", user.id);
+      // Filter to logs where actor_id is themselves OR entity relates to their projects
+      query = query.eq("actor_id", user.id);
     }
 
     const { data, error } = await query;

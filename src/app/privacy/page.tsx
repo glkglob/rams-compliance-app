@@ -34,9 +34,9 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-2xl font-semibold">1. Who we are</h2>
             <p>
-              RAMS Compliance Review (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;) is a tool that helps construction project teams
-              manage and review Risk Assessment and Method Statement (RAMS) documents for compliance with
-              UK health and safety law.
+              RAMS Compliance Review (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;) provides live AI text extraction and gap analysis to help construction project teams
+              manage, analyse and review Risk Assessment and Method Statement (RAMS) documents for compliance with
+              UK health and safety law. AI outputs are recommendations only; final decisions are recorded by humans.
             </p>
             <p>
               For the purposes of the UK General Data Protection Regulation (UK GDPR) and the Data
@@ -81,12 +81,10 @@ export default function PrivacyPolicyPage() {
               </div>
 
               <div>
-                <h3 className="font-semibold">AI processing data (planned)</h3>
+                <h3 className="font-semibold">AI processing data (live for gap analysis)</h3>
                 <p>
-                  AI-assisted analysis is a planned feature for a future release. When introduced, document
-                  text and RAMS content would be sent to OpenAI to extract requirements and perform compliance
-                  comparisons, and we would have a Data Processing Agreement in place with OpenAI before enabling
-                  it. We do not currently send your documents to OpenAI.
+                  Live AI gap analysis sends document text and RAMS content to OpenAI (via our AI provider) to perform text extraction and compliance gap detection / comparison against project requirements.
+                  We have appropriate data processing safeguards in place with our AI provider. AI outputs are recommendations and evidence highlights only — no automated decisions are made by the system.
                 </p>
               </div>
 
@@ -96,8 +94,7 @@ export default function PrivacyPolicyPage() {
                   <li>IP addresses, browser type, and timestamps (via standard web server logs)</li>
                   <li>Complete audit trail of actions performed within the system (who did what and when)</li>
                   <li>
-                    Compliance review decisions, scores, and generated email content (applicable once
-                    AI-assisted review and automated notifications are introduced in a future release)
+                    Compliance review decisions, scores, AI gap analysis outputs, and generated content
                   </li>
                 </ul>
               </div>
@@ -144,8 +141,7 @@ export default function PrivacyPolicyPage() {
               <li>To maintain a tamper-evident audit log for regulatory and dispute purposes</li>
             </ul>
             <p className="mt-4 text-sm text-muted-foreground">
-              AI-assisted document review and automated notifications are planned features for future
-              releases.
+              AI text extraction + gap analysis is live (recommendations only). Automated notifications and full scoring are planned.
             </p>
           </section>
 
@@ -159,13 +155,10 @@ export default function PrivacyPolicyPage() {
                 United States with appropriate safeguards.
               </li>
               <li>
-                <strong>OpenAI</strong> (AI analysis of documents) — <em>planned</em>. When AI-assisted review
-                is introduced, data would be processed in the United States under a Data Processing Agreement
-                and Standard Contractual Clauses. Not currently in use.
+                <strong>OpenAI (via provider)</strong> (live AI text extraction + gap analysis). Document excerpts and RAMS content are sent to generate gap detection, evidence, and scores (recommendations only). Processed in the US under appropriate safeguards and DPAs.
               </li>
               <li>
-                <strong>Resend</strong> (transactional email delivery) — <em>planned</em>, for sending
-                automated compliance review emails in a future release. Not currently in use.
+                <strong>Resend</strong> (transactional email delivery) — planned for automated notifications in a future release. Basic transactional use may be enabled.
               </li>
             </ul>
             <p className="mt-4">
@@ -178,7 +171,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-2xl font-semibold">6. International transfers</h2>
             <p>
-              Some of our processors (such as Supabase, and OpenAI once AI-assisted review is introduced) are
+              Some of our processors (such as Supabase, and our AI provider for live gap analysis) are
               based in the United States. We ensure appropriate safeguards are in place, including Standard
               Contractual Clauses approved by the UK Government and, where applicable, the UK Addendum to the SCCs.
             </p>
@@ -249,11 +242,10 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-2xl font-semibold">9. Automated decision-making and AI</h2>
             <p>
-              AI-assisted analysis is a planned feature for a future release; the system does not currently use
-              AI to analyse documents or make automated decisions. When introduced, AI (large language models)
-              would analyse documents and suggest compliance decisions as <strong>recommendations only</strong>.
-              Final decisions would always be made or confirmed by human reviewers with appropriate competence,
-              and you would have the right to request human review of any automated output that affects you.
+              <strong>Live:</strong> The system uses AI (large language models) for text extraction and gap analysis. AI analyses documents and suggests gaps, evidence, and scores as <strong>recommendations and decision-support only</strong>. AI never makes or records final compliance decisions.
+            </p>
+            <p className="mt-2">
+              Final decisions, approvals, rejections and overrides are always made and recorded by authorised human reviewers. You have full visibility via the audit trail. No automated decision-making that produces legal or significant effects occurs without human oversight.
             </p>
           </section>
 

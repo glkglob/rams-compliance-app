@@ -8,6 +8,7 @@ import { createServerSupabaseWithTimeout } from "@/lib/db/supabase-with-timeout"
 import { handleAPIError, internalServerErrorResponse, UnauthorizedError, ForbiddenError } from "@/lib/error-handling";
 import { toProjectInsert } from "@/lib/projects/project-mappers";
 import { createProjectSchema } from "@/lib/validations/project.schema";
+import { getOrCreateDefaultOrganisation } from "@/lib/domain/organisations/organisation-service";
 
 export async function POST(request: Request) {
   try {
@@ -47,9 +48,14 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validatedData = createProjectSchema.parse(body);
 
+    const org = await getOrCreateDefaultOrganisation();
+
     const { data: project, error: projectError } = await supabase
       .from("projects")
-      .insert(toProjectInsert(validatedData, user.id))
+      .insert({
+        ...toProjectInsert(validatedData, user.id),
+        organisation_id: org.id,
+      })
       .select("*")
       .single();
 

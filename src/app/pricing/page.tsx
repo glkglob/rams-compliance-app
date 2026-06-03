@@ -52,7 +52,7 @@ function planFeatures(plan: Plan): string[] {
   features.push(`${limitLabel(plan.max_projects)} project${plan.max_projects === 1 ? '' : 's'}`);
   features.push(`${limitLabel(plan.max_rams_per_month)} RAMS reviews / month`);
   features.push(`${limitLabel(plan.max_storage_mb)} MB storage`);
-  if (plan.ai_reviews) features.push('AI-powered compliance analysis');
+  if (plan.ai_reviews) features.push('Live AI text extraction + gap analysis (recommendations only)');
   if (plan.slug === 'enterprise') {
     features.push('Priority support');
     features.push('Custom SLAs');

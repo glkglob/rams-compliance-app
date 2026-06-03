@@ -203,7 +203,7 @@ export function AttachmentsTab({ ramsId }: AttachmentsTabProps) {
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading attachments…</p>
         ) : attachments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No attachments yet.</p>
+          <p className="text-sm text-muted-foreground">No attachments yet. Add supporting photos or files to this RAMS submission.</p>
         ) : (
           <ul className="divide-y rounded-lg border">
             {attachments.map((a) => (

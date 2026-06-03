@@ -39,7 +39,7 @@ export function GapAnalysisSummary({ checks, complianceScore }: GapAnalysisSumma
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Gap Analysis Summary</h3>
-          <p className="text-sm text-muted-foreground">AI review of {total} requirement checks</p>
+          <p className="text-sm text-muted-foreground">AI gap analysis of {total} requirement checks (recommendations only — record human decision below)</p>
         </div>
         {complianceScore !== null && complianceScore !== undefined && (
           <div className="text-right">

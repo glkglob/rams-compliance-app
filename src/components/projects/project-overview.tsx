@@ -60,7 +60,7 @@ export function ProjectOverview({ project }: { project: Record<string, unknown> 
               <dd className="font-medium">{complianceThreshold ?? 80}%</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">Documents Uploaded</dt>
+              <dt className="text-muted-foreground">Compliance Documents</dt>
               <dd className="font-medium">-</dd>
             </div>
             <div className="flex justify-between">

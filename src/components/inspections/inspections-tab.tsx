@@ -405,7 +405,7 @@ export function InspectionsTab({ projectId }: InspectionsTabProps) {
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : inspections.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
-            No inspections yet. Create one to get started.
+            No inspections yet. Create one to get started. (Core workflow: projects → RAMS upload &amp; AI analysis → human review first.)
           </p>
         ) : (
           <div className="space-y-2">

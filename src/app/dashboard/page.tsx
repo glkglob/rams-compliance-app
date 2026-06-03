@@ -169,6 +169,21 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {stats.totalProjects === 0 && !error ? (
+        <Card className="mb-8 border-primary/30 bg-primary/5">
+          <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+            <FolderOpen className="mb-4 h-12 w-12 text-primary" />
+            <h2 className="mb-2 text-xl font-semibold">No projects yet</h2>
+            <p className="mb-4 max-w-md text-muted-foreground">
+              Create a project to upload RAMS, run AI gap analysis, and record human decisions. Workflow: Create Project → Upload RAMS → Run Analysis → Review &amp; Decide.
+            </p>
+            <Button onClick={() => router.push("/projects/new")}>
+              Create Your First Project
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -188,9 +203,9 @@ export default function DashboardPage() {
             <Button
               className="w-full"
               variant="outline"
-              onClick={() => router.push("/settings")}
+              onClick={() => router.push("/organisation")}
             >
-              Account Settings
+              Organisation
             </Button>
           </CardContent>
         </Card>
@@ -201,7 +216,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {activity.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No activity recorded yet.</p>
+              <p className="text-sm text-muted-foreground">No activity recorded yet. Create a project, upload a RAMS, run analysis and record your first human decision to see activity here.</p>
             ) : (
               <div className="space-y-3">
                 {activity.map((entry) => (

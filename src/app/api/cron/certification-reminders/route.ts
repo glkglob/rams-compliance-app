@@ -84,7 +84,7 @@ async function postCertificationReminders(request: Request) {
         '',
         `That's ${tier.label} from now. Please arrange renewal before it expires to maintain compliance on your projects.`,
         '',
-        'You can view your certifications in your account settings.',
+        'You can view your certifications in Organisation settings.',
         '',
         'Regards,',
         'RAMS Compliance Review',

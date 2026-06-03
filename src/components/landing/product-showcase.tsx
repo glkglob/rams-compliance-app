@@ -14,7 +14,8 @@ const TABS = [
 type TabId = typeof TABS[number]['id'];
 
 function AppShell({ nav, children }: { nav: string; children: ReactNode }) {
-  const items = ['Dashboard', 'Projects', 'Documents', 'Settings'];
+  // Projects is the central workspace. Top-level nav: Dashboard | Projects | Organisation
+  const items = ['Dashboard', 'Projects', 'Organisation'];
   return (
     <div className="flex min-h-[420px]">
       <nav className="hidden sm:flex w-44 shrink-0 flex-col border-r bg-muted/20 text-xs">
@@ -290,7 +291,7 @@ const CAPTIONS: Record<TabId, string> = {
   'dashboard':     'Active projects, review metrics, and compliance statistics at a glance.',
   'project-setup': 'Create a project, set client details, and define the compliance threshold.',
   'team':          'Invite team members and assign role-based access permissions.',
-  'review':        'Step through a RAMS review: score, notes, and approve/reject/override.',
+  'review':        'Step through a RAMS review: run AI gap analysis, then score/notes + human approve/reject/override with audit.',
   'audit':         'Complete timestamped history of every decision and status change.',
 };
 
@@ -329,7 +330,7 @@ export function ProductShowcase() {
             RAMS Compliance — {TABS.find((t) => t.id === active)?.label}
           </span>
           <span className="rounded-full border px-2 py-0.5 text-[10px] text-muted-foreground shrink-0">
-            Preview
+            Illustrative mockup
           </span>
         </div>
 

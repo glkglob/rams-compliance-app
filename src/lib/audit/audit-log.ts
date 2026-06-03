@@ -47,8 +47,8 @@ export async function createAuditLog(
 ) {
   const supabase = await createServerSupabase();
 
-  const { error } = await supabase.from("audit_logs").insert({
-    user_id: options?.userId ?? null,
+  const { error } = await supabase.from("audit_events").insert({
+    actor_id: options?.userId ?? null,
     action,
     entity_type: entityType,
     entity_id: entityId,
@@ -90,9 +90,9 @@ export async function getAuditLogs(
   const supabase = await createServerSupabase();
 
   let query = supabase
-    .from("audit_logs")
-    .select("*, profiles:user_id (email, full_name, role)")
-    .order("created_at", { ascending: false })
+    .from("audit_events")
+    .select("*, profiles:actor_id (email, full_name, role)")
+    .order("occurred_at", { ascending: false })
     .limit(limit);
 
   if (entityType) {

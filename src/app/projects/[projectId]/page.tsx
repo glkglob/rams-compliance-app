@@ -79,7 +79,8 @@ export default function ProjectDetailsPage() {
   type RecentActivityEntry = {
     id: string;
     action: string;
-    created_at: string;
+    created_at?: string;
+    occurred_at?: string;
     actor_email?: string | null;
     target_type?: string | null;
     target_id?: string | null;
@@ -134,12 +135,12 @@ export default function ProjectDetailsPage() {
 
         // Load recent activity (audit logs) - especially threshold changes
         const { data: auditData } = await supabase
-          .from("audit_logs")
-          .select("action, details, created_at")
+          .from("audit_events")
+          .select("action, details, occurred_at")
           .eq("entity_type", "project")
           .eq("entity_id", projectId)
           .in("action", ["UPDATE_PROJECT", "UPDATE_PROJECT_THRESHOLD", "CREATE_PROJECT"])
-          .order("created_at", { ascending: false })
+          .order("occurred_at", { ascending: false })
           .limit(8);
 
         if (auditData) setRecentActivity(auditData);
@@ -328,7 +329,7 @@ export default function ProjectDetailsPage() {
             </span>
           </div>
           <p className="max-w-3xl text-muted-foreground">
-            {project.description ?? "No description provided yet."}
+            {project.description ?? "No description provided yet. Set one in Settings to help your team understand the project scope."}
           </p>
         </div>
         <Button onClick={() => router.push("/projects/new")}>Create Another Project</Button>
@@ -407,13 +408,13 @@ export default function ProjectDetailsPage() {
                         {log.details?.newThreshold && ` → ${log.details.newThreshold}%`}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {new Date(log.created_at).toLocaleDateString()}
+                        {new Date(log.occurred_at ?? log.created_at ?? 0).toLocaleDateString()}
                       </span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No recent activity yet.</p>
+                <p className="text-sm text-muted-foreground">No recent activity yet. Upload RAMS and run analysis to start recording decisions.</p>
               )}
             </CardContent>
           </Card>
@@ -542,7 +543,7 @@ export default function ProjectDetailsPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No members found.</p>
+                  <p className="text-sm text-muted-foreground">No members found. Invite reviewers via the form below to collaborate on RAMS reviews.</p>
                 )}
 
                 {canEditThreshold && (
@@ -604,13 +605,13 @@ export default function ProjectDetailsPage() {
                           {log.details?.newThreshold && ` → ${log.details.newThreshold}%`}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(log.created_at).toLocaleDateString()}
+                          {new Date(log.occurred_at ?? log.created_at ?? 0).toLocaleDateString()}
                         </span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No recent activity.</p>
+                  <p className="text-sm text-muted-foreground">No recent activity. The workflow is: upload RAMS → run analysis → human review &amp; record decision.</p>
                 )}
               </div>
             </CardContent>

@@ -241,9 +241,9 @@ export async function hardDeleteAccount(
 
     // 6. Delete audit logs (right to erasure)
     await admin
-      .from('audit_logs')
+      .from('audit_events')
       .delete()
-      .eq('user_id', userId);
+      .eq('actor_id', userId);
 
     // 7. Delete profile
     await admin

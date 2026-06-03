@@ -47,9 +47,9 @@ export default function TermsOfServicePage() {
           <section>
             <h2 className="text-2xl font-semibold">2. Description of the Service</h2>
             <p>
-              The Service is an AI-assisted tool that helps construction professionals upload compliance
-              source documents, extract requirements, and review subcontractor Risk Assessment and Method
-              Statement (RAMS) submissions for compliance.
+              The Service provides live AI-powered text extraction and gap analysis to help construction professionals upload compliance
+              source documents, extract text, compare against project requirements, and record human review decisions for subcontractor Risk Assessment and Method
+              Statement (RAMS) submissions. Automated scoring and notifications are planned.
             </p>
             <p className="font-semibold text-destructive">
               IMPORTANT: The Service provides decision-support recommendations only. It is not a
@@ -73,13 +73,14 @@ export default function TermsOfServicePage() {
           <section>
             <h2 className="text-2xl font-semibold">4. AI and automated outputs disclaimer</h2>
             <p>
-              The Service uses large language models (AI) to analyse documents and generate:
+              The Service (live features) uses large language models (AI) to analyse documents and generate:
             </p>
             <ul className="list-disc pl-6">
-              <li>Extracted compliance requirements</li>
-              <li>Compliance checks and scores</li>
-              <li>Explanations and draft emails</li>
+              <li>Extracted text from uploaded documents</li>
+              <li>Gap analysis: compliance checks, evidence quotes, severity ratings and scores (recommendations only)</li>
+              <li>AI summary explanations</li>
             </ul>
+            <p className="mt-2 text-sm text-muted-foreground">Draft emails and fully automated scoring/recommendations are planned for future releases.</p>
             <p className="mt-3">
               These outputs are generated probabilistically and may contain errors, omissions, or
               hallucinations. You must independently verify all AI-generated content before relying on it.

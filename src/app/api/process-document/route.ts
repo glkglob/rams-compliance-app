@@ -438,8 +438,8 @@ async function createProcessingAuditLog(
   documentId: string,
   details: Record<string, unknown>,
 ) {
-  const { error } = await supabase.from('audit_logs').insert({
-    user_id: null,
+  const { error } = await supabase.from('audit_events').insert({
+    actor_id: null,
     action,
     entity_type: 'compliance_document',
     entity_id: documentId,
